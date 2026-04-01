@@ -113,17 +113,68 @@ TOOLS = [
     },
     {
         "name": "get_projects",
-        "description": "Get the full projects file — active projects, their current state, and what's in progress.",
+        "description": "Get the project index — all active projects and their current one-line status. Fast overview only. Use get_project(name) for full details on a specific project.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
+        "name": "get_project",
+        "description": "Get full details for a specific project by name.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Project name (e.g. 'cortex', 'lotlytics')"},
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "update_project",
+        "description": (
+            "Create or update a project's current state. "
+            "IMPORTANT: Call this during compaction for every project touched this session. "
+            "Also call whenever a project's status, focus, or next steps change. "
+            "This overwrites the project file with current state only — history stays in short-term."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Project name"},
+                "status": {"type": "string", "description": "Current status (e.g. 'In progress', 'Shipped', 'On hold', 'Idea')"},
+                "focus": {"type": "string", "description": "What's actively being worked on right now"},
+                "next_steps": {"type": "array", "items": {"type": "string"}, "description": "Prioritized list of what's next"},
+                "stack": {"type": "string", "description": "Tech stack (optional, only update if changed)"},
+                "url": {"type": "string", "description": "Live URL if applicable"},
+                "notes": {"type": "string", "description": "Any other important context"},
+            },
+            "required": ["name", "status"],
+        },
+    },
+    {
+        "name": "log_decision",
+        "description": (
+            "Save an important decision to long-term memory (decisions.md). "
+            "Use for significant choices worth remembering across projects and sessions — "
+            "architecture decisions, product direction, vendor choices, etc. "
+            "For minor decisions, use log_note(type='decision') instead."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "decision": {"type": "string", "description": "What was decided"},
+                "rationale": {"type": "string", "description": "Why this decision was made"},
+                "project": {"type": "string", "description": "Related project name (optional)"},
+            },
+            "required": ["decision"],
+        },
+    },
+    {
         "name": "get_decisions",
-        "description": "Get key decisions and their rationale.",
+        "description": "Get long-term decisions log.",
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "get_long_term",
-        "description": "Get any long-term memory file by topic name (e.g. 'people', 'projects', 'decisions', or any custom topic).",
+        "description": "Get any long-term memory file by topic name (e.g. 'people', 'decisions', or any custom topic).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -144,16 +195,24 @@ def call_tool(name: str, args: dict) -> str:
         instructions = """
 ---
 ## Cortex Memory Instructions
-Save continuously — do not wait until end of session:
+
+**Save continuously — do not wait until end of session:**
 - Decision made → log_note(content, type="decision") immediately
 - Work completed → log_note(content, type="progress") immediately
 - Insight learned → log_note(content, type="insight") immediately
 - Next steps identified → log_note(content, type="next_steps") immediately
+- Major decision → log_decision(decision, rationale, project) for long-term memory
 
-Before any compaction or session end → save_session_summary()
+**Before any compaction or session end — do all of these:**
+1. save_session_summary() — distilled summary of what happened
+2. update_project(name, status, focus, next_steps) — for EVERY project touched this session
+   This keeps project state current so next session picks up exactly where this left off.
 
-When user references past work → search_brain(query, days=7) or search_brain(query, days=14)
-Never dump full context. Always search for what's needed.
+**When user references past work:**
+- search_brain(query, days=7) for last week
+- search_brain(query, days=14) for last two weeks
+- search_brain(query) for all time
+- Never dump full context — always search for what's needed
 """
         return f"## Always-On Context\n\n{always_on}\n\n---\n\n## Active Context\n\n{active}\n\n{instructions}"
 
@@ -203,7 +262,30 @@ Never dump full context. Always search for what's needed.
         return f"✅ Session summary saved to {manager.today_file().name}"
 
     elif name == "get_projects":
-        return manager.read_long_term("projects")
+        return manager.get_project_index()
+
+    elif name == "get_project":
+        return manager.get_project(args.get("name", ""))
+
+    elif name == "update_project":
+        path = manager.update_project(
+            name=args["name"],
+            status=args["status"],
+            focus=args.get("focus"),
+            next_steps=args.get("next_steps"),
+            stack=args.get("stack"),
+            url=args.get("url"),
+            notes=args.get("notes"),
+        )
+        return f"✅ Project '{args['name']}' updated — index rebuilt"
+
+    elif name == "log_decision":
+        manager.log_decision(
+            decision=args["decision"],
+            rationale=args.get("rationale"),
+            project=args.get("project"),
+        )
+        return f"✅ Decision saved to decisions.md"
 
     elif name == "get_decisions":
         return manager.read_long_term("decisions")
