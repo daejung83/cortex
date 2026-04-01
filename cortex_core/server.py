@@ -855,7 +855,23 @@ def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
     else:
         print(f"  LLM curation: heuristic mode (set CORTEX_LLM_PROVIDER in ~/.cortex/.env to enable)")
 
-    print(f"  To apply .env changes: stop Cortex (Ctrl+C) then run cortex start again\n")
+    print(f"  To apply .env changes: stop Cortex (Ctrl+C) then run cortex start again")
+
+    # Background version check — non-blocking, silent on failure
+    import threading
+    def _check_version():
+        try:
+            import urllib.request, json
+            from importlib.metadata import version as pkg_version
+            current = pkg_version("cortex-brain")
+            with urllib.request.urlopen("https://pypi.org/pypi/cortex-brain/json", timeout=3) as r:
+                latest = json.loads(r.read())["info"]["version"]
+            if latest != current:
+                print(f"\n  💡 Update available: {current} → {latest}  (run: cortex update)\n")
+        except Exception:
+            pass
+    threading.Thread(target=_check_version, daemon=True).start()
+    print()
 
     async def run_with_agent():
         config = get_config()

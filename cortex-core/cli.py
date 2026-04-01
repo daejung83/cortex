@@ -230,6 +230,49 @@ def _setup_llm(config, q=None):
     print()
 
 
+def cmd_update(args):
+    """Check PyPI for a newer version and upgrade if available."""
+    import subprocess, sys, urllib.request, json
+    from importlib.metadata import version as pkg_version
+
+    current = pkg_version("cortex-brain")
+    print(f"\n  Current version: {current}")
+    print(f"  Checking PyPI...")
+
+    try:
+        with urllib.request.urlopen("https://pypi.org/pypi/cortex-brain/json", timeout=5) as r:
+            data = json.loads(r.read())
+        latest = data["info"]["version"]
+    except Exception:
+        print("  Could not reach PyPI. Check your connection.")
+        return
+
+    if latest == current:
+        print(f"  Already up to date ({current})\n")
+        return
+
+    print(f"  New version available: {latest}")
+    q = _q()
+    if q:
+        do_update = q.confirm(f"  Upgrade from {current} to {latest}?", default=True).ask()
+    else:
+        do_update = input(f"  Upgrade from {current} to {latest}? [Y/n]: ").strip().lower() != "n"
+
+    if do_update:
+        print(f"  Upgrading...")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "cortex-brain", "-q"],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            print(f"  Upgraded to {latest}")
+            print(f"  Restart Cortex to apply: stop (Ctrl+C) then cortex start\n")
+        else:
+            print(f"  Upgrade failed: {result.stderr.strip()}")
+    else:
+        print("  Skipped.\n")
+
+
 def cmd_service(args):
     import platform
     system = platform.system()
@@ -688,6 +731,8 @@ def main():
     ig.add_argument("--port", type=int, default=7700)
     ig.add_argument("--force", action="store_true", help="Overwrite existing files")
 
+    sub.add_parser("update", help="Check for updates and upgrade cortex-brain")
+
     svc_p = sub.add_parser("service", help="Manage Cortex as a background service")
     svc_sub = svc_p.add_subparsers(dest="service_command")
     svc_install = svc_sub.add_parser("install", help="Install Cortex as a system service (auto-start on login)")
@@ -706,7 +751,9 @@ def main():
         "build-context": cmd_build_context,
     }
 
-    if args.command == "mcp" and args.mcp_command == "serve":
+    if args.command == "update":
+        cmd_update(args)
+    elif args.command == "mcp" and args.mcp_command == "serve":
         cmd_serve(args)
     elif args.command == "start":
         cmd_start(args)
