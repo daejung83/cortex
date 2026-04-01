@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "cortex-brain"
@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Derek Kim", email = "daejung1@gmail.com" }]
-keywords = ["ai", "memory", "mcp", "claude", "cursor", "llm", "agents"]
+keywords = ["ai", "memory", "mcp", "claude", "cursor", "llm", "agents", "persistent"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -21,12 +21,15 @@ classifiers = [
 
 dependencies = [
     "fastapi>=0.115",
-    "uvicorn>=0.30",
+    "uvicorn[standard]>=0.30",
     "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=3.0", "torch>=2.0"]
+llm-anthropic = ["anthropic>=0.40"]
+llm-openai = ["openai>=1.50"]
+all = ["sentence-transformers>=3.0", "anthropic>=0.40", "openai>=1.50"]
 dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.4"]
 
 [project.scripts]
@@ -35,6 +38,11 @@ cortex = "cortex_core.cli:main"
 [project.urls]
 Homepage = "https://github.com/daejung83/cortex"
 Repository = "https://github.com/daejung83/cortex"
+Documentation = "https://github.com/daejung83/cortex/blob/main/docs/SPEC.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cortex_core*"]
 
 [tool.ruff]
 line-length = 100
