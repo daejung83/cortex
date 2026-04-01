@@ -41,17 +41,37 @@ Creates `~/.cortex/brain/` with:
 cortex start
 ```
 
-Output:
-```
-🧠 Cortex running at http://127.0.0.1:7700
-   Dashboard  → http://127.0.0.1:7700
-   MCP server → http://127.0.0.1:7700/mcp
-   Brain path → ~/.cortex/brain
-```
-
 Open `http://localhost:7700` to see your dashboard.
 
-Keep the server running while using AI tools. To auto-start on login, add it to your shell profile or use a process manager.
+### Auto-start on login (recommended)
+
+Keep Cortex running in the background automatically:
+
+**macOS:**
+```bash
+cortex service install
+# Installs a launchd plist — starts on login, restarts on crash
+# Logs: ~/.cortex/cortex.log
+```
+
+**Linux:**
+```bash
+cortex service install
+# Installs a systemd user service — starts on login
+# Logs: journalctl --user -u cortex -f
+```
+
+**Windows:**
+```powershell
+python -m cortex_core.cli service install
+# Adds a .bat to Windows startup folder — starts on login
+```
+
+**Manage the service:**
+```bash
+cortex service status     # check if running
+cortex service uninstall  # remove auto-start
+```
 
 ---
 
@@ -141,7 +161,9 @@ You should see `cortex` listed. If not, restart Claude Code.
 Edit your config file:
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 - **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json` or `~/.claude.json`
+
+> **Note:** Claude Desktop on Linux may not be officially supported. Check your installation for the config file location.
 
 ```json
 {

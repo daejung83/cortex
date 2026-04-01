@@ -210,6 +210,228 @@ def _setup_llm(config, q=None):
     print()
 
 
+def cmd_service(args):
+    import platform
+    system = platform.system()
+
+    if not hasattr(args, 'service_command') or not args.service_command:
+        print("Usage: cortex service [install|uninstall|status]")
+        return
+
+    if system == "Darwin":
+        _service_macos(args)
+    elif system == "Linux":
+        _service_linux(args)
+    elif system == "Windows":
+        _service_windows(args)
+    else:
+        print(f"  Unsupported OS: {system}")
+        print("  Run 'cortex start' manually to keep Cortex running.")
+
+
+def _cortex_executable():
+    """Find the cortex executable path."""
+    import shutil, sys
+    exe = shutil.which("cortex")
+    if exe:
+        return exe
+    # Fallback: python -m cortex_core.cli
+    return f"{sys.executable} -m cortex_core.cli"
+
+
+def _service_macos(args):
+    """macOS launchd plist — auto-starts on login."""
+    import subprocess
+    from pathlib import Path
+
+    plist_dir = Path.home() / "Library" / "LaunchAgents"
+    plist_dir.mkdir(parents=True, exist_ok=True)
+    plist_path = plist_dir / "ai.cortex.brain.plist"
+    cortex_exe = _cortex_executable()
+    brain_path = Path.home() / ".cortex" / "brain"
+    log_path = Path.home() / ".cortex" / "cortex.log"
+
+    if args.service_command == "install":
+        port = args.port
+        plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.cortex.brain</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{cortex_exe.split()[0]}</string>
+        {"".join(f"<string>{a}</string>" for a in cortex_exe.split()[1:])}
+        <string>start</string>
+        <string>--port</string>
+        <string>{port}</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CORTEX_BRAIN_PATH</key>
+        <string>{brain_path}</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{log_path}</string>
+    <key>StandardErrorPath</key>
+    <string>{log_path}</string>
+</dict>
+</plist>
+"""
+        plist_path.write_text(plist_content, encoding="utf-8")
+        result = subprocess.run(["launchctl", "load", str(plist_path)], capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"\n  Cortex service installed and started!")
+            print(f"  Auto-starts on login.")
+            print(f"  Dashboard: http://localhost:{port}")
+            print(f"  Logs: {log_path}")
+            print(f"\n  To stop:      cortex service uninstall")
+            print(f"  To check:     cortex service status\n")
+        else:
+            print(f"  Install failed: {result.stderr}")
+            print(f"  Plist written to: {plist_path}")
+            print(f"  Try manually: launchctl load {plist_path}")
+
+    elif args.service_command == "uninstall":
+        if plist_path.exists():
+            subprocess.run(["launchctl", "unload", str(plist_path)], capture_output=True)
+            plist_path.unlink()
+            print("  Cortex service removed.")
+        else:
+            print("  No service found.")
+
+    elif args.service_command == "status":
+        result = subprocess.run(["launchctl", "list", "ai.cortex.brain"], capture_output=True, text=True)
+        if "ai.cortex.brain" in result.stdout:
+            print("  Cortex service: running")
+        else:
+            print("  Cortex service: not running")
+        print(f"  Plist: {plist_path} ({'exists' if plist_path.exists() else 'missing'})")
+
+
+def _service_linux(args):
+    """Linux systemd user service — auto-starts on login."""
+    import subprocess
+    from pathlib import Path
+
+    service_dir = Path.home() / ".config" / "systemd" / "user"
+    service_dir.mkdir(parents=True, exist_ok=True)
+    service_path = service_dir / "cortex.service"
+    cortex_exe = _cortex_executable()
+    brain_path = Path.home() / ".cortex" / "brain"
+
+    if args.service_command == "install":
+        port = args.port
+        service_content = f"""[Unit]
+Description=Cortex AI Brain Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={cortex_exe} start --port {port}
+Environment=CORTEX_BRAIN_PATH={brain_path}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+"""
+        service_path.write_text(service_content, encoding="utf-8")
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        result = subprocess.run(["systemctl", "--user", "enable", "--now", "cortex"], capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"\n  Cortex service installed and started!")
+            print(f"  Auto-starts on login.")
+            print(f"  Dashboard: http://localhost:{port}")
+            print(f"\n  Logs:         journalctl --user -u cortex -f")
+            print(f"  Stop:         cortex service uninstall")
+            print(f"  Status:       cortex service status\n")
+        else:
+            print(f"  systemctl enable failed: {result.stderr.strip()}")
+            print(f"  Service file written to: {service_path}")
+            print(f"  Try manually:")
+            print(f"    systemctl --user daemon-reload")
+            print(f"    systemctl --user enable --now cortex")
+
+    elif args.service_command == "uninstall":
+        subprocess.run(["systemctl", "--user", "disable", "--now", "cortex"], capture_output=True)
+        if service_path.exists():
+            service_path.unlink()
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        print("  Cortex service removed.")
+
+    elif args.service_command == "status":
+        result = subprocess.run(["systemctl", "--user", "status", "cortex"], capture_output=True, text=True)
+        print(result.stdout or result.stderr)
+
+
+def _service_windows(args):
+    """Windows — no native service support without admin. Guide user to Task Scheduler."""
+    from pathlib import Path
+    import sys
+
+    cortex_exe = _cortex_executable()
+    port = getattr(args, 'port', 7700)
+    brain_path = Path.home() / ".cortex" / "brain"
+    bat_path = Path.home() / ".cortex" / "start-cortex.bat"
+
+    if args.service_command == "install":
+        # Write a .bat file and add to Windows startup folder
+        startup_dir = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+        shortcut_bat = startup_dir / "cortex.bat"
+
+        bat_content = f"""@echo off
+set CORTEX_BRAIN_PATH={brain_path}
+start /B {cortex_exe} start --port {port}
+"""
+        bat_path.write_text(bat_content, encoding="utf-8")
+
+        # Copy to startup folder
+        try:
+            import shutil
+            shutil.copy(bat_path, shortcut_bat)
+            print(f"\n  Cortex startup script installed!")
+            print(f"  Auto-starts on Windows login.")
+            print(f"  Dashboard: http://localhost:{port}")
+            print(f"\n  Script: {bat_path}")
+            print(f"  Startup: {shortcut_bat}")
+            print(f"\n  To remove: cortex service uninstall\n")
+        except PermissionError:
+            print(f"\n  Could not write to startup folder (permission denied).")
+            print(f"  Manual option: add this to your Windows startup folder:")
+            print(f"  {bat_path} -> {startup_dir}")
+
+    elif args.service_command == "uninstall":
+        startup_dir = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+        shortcut_bat = startup_dir / "cortex.bat"
+        removed = []
+        for p in [bat_path, shortcut_bat]:
+            if p.exists():
+                p.unlink()
+                removed.append(str(p))
+        if removed:
+            print(f"  Removed: {', '.join(removed)}")
+        else:
+            print("  No startup files found.")
+
+    elif args.service_command == "status":
+        import subprocess
+        result = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq python.exe", "/FO", "LIST"],
+            capture_output=True, text=True
+        )
+        if "cortex" in result.stdout.lower() or "cortex_core" in result.stdout.lower():
+            print("  Cortex: running")
+        else:
+            print("  Cortex: not detected in running processes")
+            print("  (Run 'cortex start' or check startup folder)")
+
+
 def _write_secret(secrets_file, key: str, value: str):
     """Write or update a key in the secrets file."""
     content = secrets_file.read_text(encoding="utf-8") if secrets_file.exists() else ""
@@ -446,6 +668,13 @@ def main():
     ig.add_argument("--port", type=int, default=7700)
     ig.add_argument("--force", action="store_true", help="Overwrite existing files")
 
+    svc_p = sub.add_parser("service", help="Manage Cortex as a background service")
+    svc_sub = svc_p.add_subparsers(dest="service_command")
+    svc_install = svc_sub.add_parser("install", help="Install Cortex as a system service (auto-start on login)")
+    svc_install.add_argument("--port", type=int, default=7700)
+    svc_sub.add_parser("uninstall", help="Remove the Cortex system service")
+    svc_sub.add_parser("status", help="Show service status")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -465,6 +694,8 @@ def main():
         cmd_init_project(args)
     elif args.command == "init-global":
         cmd_init_global(args)
+    elif args.command == "service":
+        cmd_service(args)
     elif args.command in dispatch:
         dispatch[args.command](args)
     else:

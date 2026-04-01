@@ -42,11 +42,10 @@ cortex init
 ```
 
 This creates your brain directory at `~/.cortex/brain/` and runs an interactive setup:
-- Your name, role, timezone
-- Current focus / active project
-- Your tech stack
+- Your name, role, current focus
+- LLM curation choice (Ollama / OpenAI / Anthropic / skip)
 
-You can edit these anytime in `~/.cortex/brain/always-on.md`.
+Timezone is auto-detected. Tech stack is learned by the AI over time.
 
 ### Step 2 — Start the server
 
@@ -59,7 +58,25 @@ This starts:
 - **MCP server** at `http://localhost:7700/mcp` — connects to AI tools
 - **Curation agent** — rebuilds active-context every 30min in the background
 
-Keep this running while you work. Add it to your startup if you want it always available.
+Keep this running while you work.
+
+**Auto-start on login (recommended):**
+
+```bash
+# macOS — installs launchd plist, restarts on crash
+cortex service install
+
+# Linux — installs systemd user service
+cortex service install
+
+# Windows
+python -m cortex_core.cli service install
+```
+
+```bash
+cortex service status     # check if running
+cortex service uninstall  # remove auto-start
+```
 
 ### Step 3 — Connect your AI tools
 
@@ -349,16 +366,19 @@ After 30 days
 ## CLI Reference
 
 ```bash
-cortex init                  # Initialize brain (interactive setup)
-cortex start                 # Start server + dashboard + curation agent
-cortex init-global           # Connect all AI tools globally (one-time)
-cortex init-project          # Connect AI tools to current project folder
-cortex search <query>        # Search brain from terminal
-cortex note "text"           # Add note to today's brain file
-cortex context               # Print active context
-cortex distill --days 3      # Distill recent sessions (with LLM if configured)
-cortex build-context         # Rebuild active-context.md manually
-cortex mcp serve             # MCP server only (no dashboard)
+cortex init                    # Initialize brain (interactive setup)
+cortex start                   # Start server + dashboard + curation agent
+cortex service install         # Auto-start on login (macOS/Linux/Windows)
+cortex service uninstall       # Remove auto-start
+cortex service status          # Check if service is running
+cortex init-global             # Connect all AI tools globally (one-time)
+cortex init-project            # Connect AI tools to current project folder
+cortex search <query>          # Search brain from terminal
+cortex note "text"             # Add note to today's brain file
+cortex context                 # Print active context
+cortex distill --days 3        # Distill recent sessions (with LLM if configured)
+cortex build-context           # Rebuild active-context.md manually
+cortex mcp serve               # MCP server only (no dashboard)
 ```
 
 ---
