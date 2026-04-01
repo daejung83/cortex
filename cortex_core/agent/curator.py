@@ -129,11 +129,11 @@ class CurationAgent:
             # Append to long-term projects file with date header
             projects_file = self.config.long_term_dir / "projects.md"
             if projects_file.exists():
-                existing = projects_file.read_text()
+                existing = projects_file.read_text(encoding="utf-8")
                 entry = f"\n\n## Update — {yesterday}\n\n{distilled}"
                 # Only append if not already there
                 if yesterday not in existing:
-                    with projects_file.open("a") as f:
+                    with projects_file.open("a", encoding="utf-8") as f:
                         f.write(entry)
                     logger.info(f"Distilled {yesterday} into long-term memory")
 
@@ -174,7 +174,7 @@ class CurationAgent:
         - session_summary → long-term/summaries/YYYY-MM.md
         """
         from pathlib import Path as P
-        content = file.read_text()
+        content = file.read_text(encoding="utf-8")
         file_date = file.stem  # YYYY-MM-DD
 
         current_heading = ""
@@ -215,7 +215,7 @@ class CurationAgent:
     def _append_to_longterm(self, filename: str, date_str: str, heading: str, text: str):
         target = self.config.long_term_dir / filename
         entry = f"\n## {date_str} — {heading}\n{text}\n"
-        with target.open("a") as f:
+        with target.open("a", encoding="utf-8") as f:
             f.write(entry)
 
     def _append_to_monthly_summary(self, date_str: str, text: str):
@@ -228,8 +228,8 @@ class CurationAgent:
         summaries_dir.mkdir(parents=True, exist_ok=True)
         target = summaries_dir / f"{month}.md"
         if not target.exists():
-            target.write_text(f"# Session Summaries — {month}\n\n")
-        with target.open("a") as f:
+            target.write_text(f"# Session Summaries — {month}\n\n", encoding="utf-8")
+        with target.open("a", encoding="utf-8") as f:
             f.write(f"\n## {date_str}\n{text}\n")
 
     async def run(self):

@@ -103,6 +103,6 @@ class Distiller:
         # Atomic write — prevents half-written file if AI reads during rebuild
         import os
         tmp = self.config.active_context_file.with_suffix(".tmp")
-        tmp.write_text(result)
+        tmp.write_text(result, encoding="utf-8")
         os.replace(tmp, self.config.active_context_file)
         return result

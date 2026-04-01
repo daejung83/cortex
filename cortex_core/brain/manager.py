@@ -51,7 +51,7 @@ class BrainManager:
             f = self.config.long_term_dir / fname
             if not f.exists():
                 title = fname.replace(".md", "").capitalize()
-                f.write_text(f"# {title}\n\n_Add entries here._\n")
+                f.write_text(f"# {title}\n\n_Add entries here._\n", encoding="utf-8")
 
         print(f"✅ Brain initialized at {self.config.root}")
 
@@ -60,7 +60,7 @@ class BrainManager:
         today = date.today().isoformat()
         path = self.config.short_term_dir / f"{today}.md"
         if not path.exists():
-            path.write_text(f"# Brain — {today}\n\n")
+            path.write_text(f"# Brain — {today}\n\n", encoding="utf-8")
         return path
 
     def append_to_today(self, content: str, heading: Optional[str] = None):
@@ -68,24 +68,24 @@ class BrainManager:
         f = self.today_file()
         ts = datetime.now().strftime("%H:%M")
         entry = f"\n## {heading or ts}\n\n{content.strip()}\n"
-        with f.open("a") as fp:
+        with f.open("a", encoding="utf-8") as fp:
             fp.write(entry)
 
     def read_active_context(self) -> str:
         if self.config.active_context_file.exists():
-            return self.config.active_context_file.read_text()
+            return self.config.active_context_file.read_text(encoding="utf-8")
         return ""
 
     def read_always_on(self) -> str:
         if self.config.always_on_file.exists():
-            return self.config.always_on_file.read_text()
+            return self.config.always_on_file.read_text(encoding="utf-8")
         return ""
 
     def read_long_term(self, topic: str) -> str:
         """Read a long-term file by topic name (e.g. 'projects', 'decisions')."""
         path = self.config.long_term_dir / f"{topic}.md"
         if path.exists():
-            return path.read_text()
+            return path.read_text(encoding="utf-8")
         return f"No long-term file for topic: {topic}"
 
     def list_long_term_topics(self) -> list[str]:
@@ -124,7 +124,7 @@ class BrainManager:
         # Load existing fields if file exists
         existing = {}
         if path.exists():
-            for line in path.read_text().splitlines():
+            for line in path.read_text(encoding="utf-8").splitlines():
                 for field in ["Status", "URL", "Stack", "Current focus", "Notes"]:
                     if f"**{field}:**" in line:
                         existing[field.lower().replace(" ", "_")] = line.split(f"**{field}:**")[-1].strip()
@@ -159,7 +159,7 @@ class BrainManager:
         # Atomic write — prevents race condition with concurrent sessions
         import tempfile, os
         tmp = path.with_suffix(".tmp")
-        tmp.write_text(content)
+        tmp.write_text(content, encoding="utf-8")
         os.replace(tmp, path)
 
         self._rebuild_project_index()
@@ -168,7 +168,7 @@ class BrainManager:
     def get_project(self, name: str) -> str:
         path = self._project_file(name)
         if path.exists():
-            return path.read_text()
+            return path.read_text(encoding="utf-8")
         return f"No project found: {name}"
 
     def list_projects(self) -> list[str]:
@@ -180,7 +180,7 @@ class BrainManager:
     def get_project_index(self) -> str:
         idx = self._index_file()
         if idx.exists():
-            return idx.read_text()
+            return idx.read_text(encoding="utf-8")
         return self._rebuild_project_index()
 
     def _rebuild_project_index(self) -> str:
@@ -189,7 +189,7 @@ class BrainManager:
         for f in sorted(self.projects_dir.glob("*.md")):
             if f.stem == "_index":
                 continue
-            content = f.read_text()
+            content = f.read_text(encoding="utf-8")
             # Extract name (first # heading) and status
             name = f.stem
             status = "unknown"
@@ -203,7 +203,7 @@ class BrainManager:
 
         today = date.today().isoformat()
         index_content = f"# Projects\n_Updated: {today}_\n\n" + "\n".join(projects) + "\n"
-        self._index_file().write_text(index_content)
+        self._index_file().write_text(index_content, encoding="utf-8")
         return index_content
 
     # ── Learnings methods ────────────────────────────────────────────
@@ -219,7 +219,7 @@ class BrainManager:
     def read_learnings(self) -> str:
         if not self._learnings_file.exists():
             return "_No learnings yet. AI will update this as patterns are observed._"
-        return self._learnings_file.read_text()
+        return self._learnings_file.read_text(encoding="utf-8")
 
     def update_learning(self, category: str, insight: str, replaces: Optional[str] = None) -> str:
         """
@@ -228,7 +228,7 @@ class BrainManager:
         Enforces max line limit — AI must consolidate if too big.
         """
         today = date.today().isoformat()
-        existing = self._learnings_file.read_text() if self._learnings_file.exists() else ""
+        existing = self._learnings_file.read_text(encoding="utf-8") if self._learnings_file.exists() else ""
 
         # Parse existing into sections
         sections: dict[str, list[str]] = {}
@@ -284,7 +284,7 @@ class BrainManager:
         # Atomic write
         import tempfile, os
         tmp = self._learnings_file.with_suffix(".tmp")
-        tmp.write_text(content)
+        tmp.write_text(content, encoding="utf-8")
         os.replace(tmp, self._learnings_file)
         return f"✅ Learning updated in category: {category}"
 
@@ -321,7 +321,7 @@ class BrainManager:
             lines.append(f"**Why:** {rationale}")
 
         entry = "\n".join(lines) + "\n"
-        with decisions_file.open("a") as f:
+        with decisions_file.open("a", encoding="utf-8") as f:
             f.write(entry)
         return str(decisions_file)
 
@@ -331,14 +331,14 @@ class BrainManager:
         if not path.exists():
             return "_No decisions logged yet._"
         if days == 0:
-            return path.read_text()
+            return path.read_text(encoding="utf-8")
 
         cutoff = date.today() - timedelta(days=days)
         lines_out = []
         include = True
         header_added = False
 
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             # Section headers like "## 2026-04-01 14:23"
             if line.startswith("## "):
                 date_match = re.match(r"## (\d{4}-\d{2}-\d{2})", line)
@@ -370,7 +370,7 @@ class BrainManager:
 
         for path in long_term_files:
             try:
-                lines = path.read_text().splitlines()
+                lines = path.read_text(encoding="utf-8").splitlines()
             except Exception:
                 continue
             current_heading = path.stem
@@ -403,7 +403,7 @@ class BrainManager:
         """Get summary for a specific month (YYYY-MM)."""
         path = self.config.long_term_dir / "summaries" / f"{month}.md"
         if path.exists():
-            return path.read_text()
+            return path.read_text(encoding="utf-8")
         return f"No summary for {month}"
 
     def recent_short_term(self, days: int = 3) -> list[tuple[str, str]]:
@@ -411,4 +411,4 @@ class BrainManager:
         if not self.config.short_term_dir.exists():
             return []
         files = sorted(self.config.short_term_dir.glob("*.md"), reverse=True)[:days]
-        return [(f.stem, f.read_text()) for f in files]
+        return [(f.stem, f.read_text(encoding="utf-8")) for f in files]

@@ -41,8 +41,8 @@ You are not starting from zero. You have history with this user.
 ## Memory Rules
 - Never claim to remember something you haven't retrieved via tools
 - Never dump full context — always search for what's specifically needed
-- If unsure whether something was decided → search, don't assume
-- Stale learnings (flagged ⚠️) → confirm with user before acting on them
+- If unsure whether something was decided -> search, don't assume
+- Stale learnings (flagged ⚠️) -> confirm with user before acting on them
 
 ## Tone & Style
 - Direct and concise — skip filler phrases
@@ -60,13 +60,13 @@ def get_soul_path(config) -> "Path":
 def read_soul(config) -> str:
     path = get_soul_path(config)
     if path.exists():
-        return path.read_text()
+        return path.read_text(encoding="utf-8")
     return DEFAULT_SOUL
 
 
 def init_soul(config):
     path = get_soul_path(config)
     if not path.exists():
-        path.write_text(DEFAULT_SOUL)
+        path.write_text(DEFAULT_SOUL, encoding="utf-8")
         return True
     return False
