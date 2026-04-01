@@ -58,13 +58,22 @@ class BrainManager:
         if not secrets_file.exists():
             secrets_file.write_text(
                 "# Cortex secrets — never commit this file\n"
-                "# Uncomment and fill in to enable LLM curation\n\n"
-                "# CORTEX_LLM_PROVIDER=openai\n"
-                "# CORTEX_LLM_API_KEY=sk-...\n\n"
-                "# CORTEX_LLM_PROVIDER=anthropic\n"
-                "# CORTEX_LLM_API_KEY=sk-ant-...\n\n"
-                "# CORTEX_LLM_PROVIDER=ollama\n"
-                "# CORTEX_LLM_MODEL=llama3.2\n",
+                "#\n"
+                "# Set CORTEX_LLM_PROVIDER to activate AI curation.\n"
+                "# Only the active provider's key is used — others are ignored.\n"
+                "# You can store multiple keys here and switch providers by\n"
+                "# changing CORTEX_LLM_PROVIDER.\n"
+                "#\n"
+                "# ── Active provider (uncomment one) ──────────────────\n"
+                "# CORTEX_LLM_PROVIDER=ollama          # local, free\n"
+                "# CORTEX_LLM_PROVIDER=openai          # ~$0.001/day\n"
+                "# CORTEX_LLM_PROVIDER=anthropic       # ~$0.001/day\n"
+                "#\n"
+                "# ── Keys (store all, only active provider's key is used) ─\n"
+                "# CORTEX_LLM_API_KEY=sk-...           # OpenAI or Anthropic key\n"
+                "#\n"
+                "# ── Model override (optional) ──────────────────────────\n"
+                "# CORTEX_LLM_MODEL=llama3.2           # default per provider\n",
                 encoding="utf-8"
             )
 

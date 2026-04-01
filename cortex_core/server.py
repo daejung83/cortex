@@ -302,21 +302,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <p style="font-size:12px;color:var(--muted);margin-top:10px">
               Enable AI curation by setting env vars before <code>cortex start</code>:
             </p>
-            <div class="code-block"># Option A: Local Ollama (free, no API key — recommended for Claude Code subscribers)
-# Install Ollama first: https://ollama.ai → then: ollama pull llama3.2
-CORTEX_LLM_PROVIDER=ollama
-CORTEX_LLM_MODEL=llama3.2
-
-# Option B: OpenAI API key (gpt-5.4-nano — $0.20/1M tokens, ~pennies/month)
-CORTEX_LLM_PROVIDER=openai
-CORTEX_LLM_API_KEY=sk-...
-
-# Option C: Anthropic API key (requires separate API account — NOT Claude Code subscription)
-CORTEX_LLM_PROVIDER=anthropic
-CORTEX_LLM_API_KEY=sk-ant-...</div>
+            <div class="code-block" id="env-template"></div>
             <p style="font-size:11px;color:var(--muted);margin-top:8px">
-              ⚠️ Claude Code/Desktop <strong>subscriptions</strong> don't include API access — they use different auth.<br>
-              For AI curation without an API key, use <strong>Ollama (local, free)</strong>.
+              Only the <strong>active provider's key</strong> is used — store multiple keys, switch by changing <code>CORTEX_LLM_PROVIDER</code>.<br>
+              ⚠️ Claude Code/Desktop <strong>subscriptions</strong> can't be used for curation (OAuth, not API key). Use <strong>Ollama</strong> instead.
             </p>
           </div>
         </div>
@@ -554,6 +543,24 @@ async function loadConnect() {
     } else {
       document.getElementById('llm-status').innerHTML = `<span style="color:var(--yellow)">⚡ Heuristic mode — works great for most users. Want smarter curation? Set CORTEX_LLM_PROVIDER=ollama (free, local) or use an OpenAI/Anthropic API key.</span>`;
     }
+
+    // LLM env template
+    const envPath = '~/.cortex/.env';
+    document.getElementById('env-template').textContent =
+`# ${envPath} — never commit this file
+# Only the active provider's key is used. Store all keys here,
+# switch providers by changing CORTEX_LLM_PROVIDER.
+
+# ── Active provider (uncomment one) ──────────────
+# CORTEX_LLM_PROVIDER=ollama        # local, free
+# CORTEX_LLM_PROVIDER=openai        # ~$0.001/day
+# CORTEX_LLM_PROVIDER=anthropic     # ~$0.001/day
+
+# ── Keys ──────────────────────────────────────────
+# CORTEX_LLM_API_KEY=sk-...         # OpenAI or Anthropic key
+
+# ── Model override (optional) ─────────────────────
+# CORTEX_LLM_MODEL=llama3.2`;
 
     document.getElementById('cmd-global').textContent = `python -m cortex_core.cli init-global --port ${port}`;
     document.getElementById('cmd-project').textContent = `python -m cortex_core.cli init-project --port ${port}`;
