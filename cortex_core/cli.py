@@ -32,9 +32,9 @@ def cmd_init(args):
     manager = BrainManager(config)
     manager.init()
 
-    # Onboarding — only if always-on is still the default template
-    always_on = manager.read_always_on()
-    if "[Your name]" in always_on and not args.skip_onboarding:
+    # Onboarding — only on first init (flag file not present)
+    flag_file = config.root / ".initialized"
+    if not flag_file.exists() and not args.skip_onboarding:
         print("\n🧠 Let's set up your brain. (Press Enter to skip any question)\n")
 
         name = input("Your name: ").strip()
@@ -56,8 +56,11 @@ def cmd_init(args):
             lines.append(f"\n## My Stack\n- {stack}")
 
         if any([name, role, focus, stack]):
-            config.always_on_file.write_text("\n".join(lines) + "\n")
+            config.always_on_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
             print("\n✅ always-on.md created")
+
+        # Mark as initialized so onboarding doesn't repeat
+        flag_file.write_text("initialized", encoding="utf-8")
 
         # Seed first project if given
         if focus:
