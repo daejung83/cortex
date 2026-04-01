@@ -401,7 +401,7 @@ async def mcp_endpoint(request: Request):
         result = {
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "cortex", "version": "0.1.0"},
+            "serverInfo": {"name": "cortex", "version": __import__("cortex_core").__version__},
         }
         response = JSONResponse(make_response(id_, result))
         response.headers["mcp-session-id"] = session_id

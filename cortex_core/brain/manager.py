@@ -35,7 +35,8 @@ class BrainManager:
                 "your AI should always know about you._\n\n"
                 "## About Me\n\n"
                 "## Current Focus\n\n"
-                "## My Stack\n"
+                "## My Stack\n",
+                encoding="utf-8"
             )
 
         # Seed active-context.md if missing
@@ -43,7 +44,8 @@ class BrainManager:
             self.config.active_context_file.write_text(
                 "# Active Context\n\n"
                 "_Auto-rebuilt from recent sessions. Do not edit manually._\n\n"
-                "No context yet — run `cortex build-context` after your first session.\n"
+                "No context yet -- run `cortex build-context` after your first session.\n",
+                encoding="utf-8"
             )
 
         # Seed default long-term files
@@ -383,10 +385,6 @@ class BrainManager:
 
     def search_long_term(self, query: str, max_results: int = 8) -> list:
         """Search only long-term files — decisions, insights, summaries, projects."""
-        from ..search.searcher import BrainSearcher, SearchResult
-        import copy
-
-        # Temporarily override to search only long-term
         long_term_files = []
         if self.config.long_term_dir.exists():
             long_term_files.extend(self.config.long_term_dir.rglob("*.md"))

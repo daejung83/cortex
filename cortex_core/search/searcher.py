@@ -77,7 +77,7 @@ class BrainSearcher:
 
         for path in self._all_brain_files(days=days):
             try:
-                lines = path.read_text().splitlines()
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             except Exception:
                 continue
 
@@ -118,7 +118,7 @@ class BrainSearcher:
         candidates = []
         for path in self._all_brain_files(days=days):
             try:
-                lines = path.read_text().splitlines()
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             except Exception:
                 continue
 

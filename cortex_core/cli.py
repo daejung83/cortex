@@ -497,42 +497,26 @@ start /B {cortex_exe} start --port {port}
             print("  No startup files found.")
 
     elif args.service_command == "status":
-        import subprocess, urllib.request
-        # Check if server is actually responding — most reliable method
-        try:
-            with urllib.request.urlopen("http://127.0.0.1:7700/api/status", timeout=2) as r:
-                import json
-                data = json.loads(r.read())
-                print(f"  Cortex: running")
-                print(f"  Dashboard: http://127.0.0.1:{data.get('port', 7700)}")
-                print(f"  Brain: {data.get('brain_path', '~/.cortex/brain')}")
-                llm = data.get('llm')
-                if llm:
-                    print(f"  LLM: {llm['provider']} / {llm['model']}")
-                else:
-                    print(f"  LLM: heuristic mode")
-        except Exception:
-            print("  Cortex: not running")
-            bat = Path.home() / ".cortex" / "start-cortex.bat"
-            startup = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "cortex.bat"
-            if startup.exists():
-                print(f"  Auto-start: installed (runs on next login)")
-            print(f"  Run: python -m cortex_core.cli start")
+        startup = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "cortex.bat"
+        _print_service_status(startup, "Startup script")
 
 
 def _write_secret(secrets_file, key: str, value: str):
-    """Write or update a key in the secrets file."""
+    """Write or update a key in the secrets file. Exact key match only."""
     content = secrets_file.read_text(encoding="utf-8") if secrets_file.exists() else ""
     lines = content.splitlines()
     new_lines = []
     updated = False
     for line in lines:
-        stripped = line.lstrip("# ").split("=")[0].strip()
-        if stripped == key:
-            new_lines.append(f"{key}={value}")
-            updated = True
-        else:
-            new_lines.append(line)
+        # Parse the key from the line, handling commented-out lines like "# KEY=val"
+        stripped = line.lstrip("#").lstrip()
+        if "=" in stripped:
+            line_key = stripped.split("=", 1)[0].strip()
+            if line_key == key:
+                new_lines.append(f"{key}={value}")
+                updated = True
+                continue
+        new_lines.append(line)
     if not updated:
         new_lines.append(f"{key}={value}")
     secrets_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
