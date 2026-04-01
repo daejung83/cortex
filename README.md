@@ -53,12 +53,9 @@ Restart Claude Desktop. Cortex will appear in your tools list.
 
 Claude Code reads MCP config from `~/.claude/.mcp.json` (global) or `.mcp.json` in your project root (project-scoped).
 
-**Option 1 — CLI command (recommended):**
-```bash
-claude mcp add cortex --transport http http://127.0.0.1:7700/mcp
-```
+**Option 1 — Global (recommended — works in every project):**
 
-**Option 2 — Manual:** Create `~/.claude/.mcp.json`:
+Create `~/.claude/.mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -70,13 +67,20 @@ claude mcp add cortex --transport http http://127.0.0.1:7700/mcp
 }
 ```
 
+**Option 2 — Project-scoped (only active in current project):**
+
+Run in your project directory:
+```bash
+claude mcp add cortex --transport http http://127.0.0.1:7700/mcp
+```
+
 > ⚠️ **Do not put `mcpServers` in `settings.json`** — Claude Code silently ignores it there.
 
-**Auto-load context on every session:** Create a `CLAUDE.md` in your project root:
+**Auto-load context every session** — Cortex won't call `get_context()` automatically. Add a `CLAUDE.md` to your project root (or `~/.claude/CLAUDE.md` for global):
 ```markdown
-# MCP Instructions
+# Memory Instructions
 At the start of every session, call cortex:get_context() and cortex:get_learnings()
-before responding to anything. This loads your persistent memory.
+before responding to anything. This loads your persistent memory and who you are.
 ```
 
 ---
@@ -91,6 +95,13 @@ In Cursor settings → MCP → Add server:
     "url": "http://127.0.0.1:7700/mcp"
   }
 }
+```
+
+**Auto-load context every session** — Add `.cursorrules` (Cursor) or `.windsurfrules` (Windsurf) to your project root:
+```
+# Memory Instructions
+At the start of every session, call cortex:get_context() and cortex:get_learnings()
+before responding to anything. This loads your persistent memory and who you are.
 ```
 
 ---

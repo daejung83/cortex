@@ -320,19 +320,31 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div class="card">
           <div class="card-header"><span class="card-title">Claude Code (CLI)</span></div>
           <div class="card-body">
-            <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Run this command — Claude Code auto-detects the config:</p>
-            <div class="code-block" id="claudecode-cmd"></div>
-            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claudecode-cmd')">Copy</button>
-            <p style="font-size:12px;color:var(--muted);margin-top:12px;margin-bottom:8px">
-              Or manually create <code>~/.claude/.mcp.json</code>:<br>
-              <span style="color:var(--red);font-size:11px">⚠️ Do NOT put mcpServers in settings.json — Claude Code silently ignores it there.</span>
-            </p>
+
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Option 1 — Global <span style="font-size:11px;color:var(--green);font-weight:400">(recommended — works in every project)</span></p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Manually create <code>~/.claude/.mcp.json</code>:</p>
             <div class="code-block" id="claudecode-config"></div>
             <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claudecode-config')">Copy</button>
-            <p style="font-size:12px;color:var(--muted);margin-top:14px;margin-bottom:6px"><strong>Auto-load context every session</strong> — add a <code>CLAUDE.md</code> to your project root:</p>
-            <div class="code-block"># MCP Instructions
+
+            <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Option 2 — Project-scoped <span style="font-size:11px;color:var(--muted);font-weight:400">(only active in current project folder)</span></p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Run in your project directory — creates a local <code>.mcp.json</code>:</p>
+            <div class="code-block" id="claudecode-cmd"></div>
+            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claudecode-cmd')">Copy</button>
+
+            <p style="font-size:11px;color:var(--red);margin-top:10px">⚠️ Do NOT put mcpServers in settings.json — Claude Code silently ignores it there.</p>
+
+            <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Auto-load context every session</p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px">
+              Cortex won't call <code>get_context()</code> automatically — you need to tell Claude to do it.<br>
+              Add a <code>CLAUDE.md</code> file to your project root (or <code>~/.claude/CLAUDE.md</code> for global):
+            </p>
+            <div class="code-block"># Memory Instructions
 At the start of every session, call cortex:get_context() and cortex:get_learnings()
-before responding to anything. This loads your persistent memory.</div>
+before responding to anything. This loads your persistent memory and who you are.</div>
           </div>
         </div>
 
@@ -342,6 +354,17 @@ before responding to anything. This loads your persistent memory.</div>
             <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Settings → MCP → Add server:</p>
             <div class="code-block" id="cursor-config"></div>
             <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('cursor-config')">Copy</button>
+
+            <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Auto-load context every session</p>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px">
+              Cursor/Windsurf don't auto-call <code>get_context()</code> either.<br>
+              Add a <code>.cursorrules</code> file (Cursor) or <code>.windsurfrules</code> (Windsurf) to your project root:
+            </p>
+            <div class="code-block"># Memory Instructions
+At the start of every session, call cortex:get_context() and cortex:get_learnings()
+before responding to anything. This loads your persistent memory and who you are.</div>
           </div>
         </div>
 
