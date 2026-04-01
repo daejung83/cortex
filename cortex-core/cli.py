@@ -57,28 +57,30 @@ def _run_onboarding(config, manager, flag_file, q):
     _print_banner()
 
     if q:
-        name     = q.text("Your name:").ask() or ""
-        role     = q.text("Your role / what you do:").ask() or ""
-        focus    = q.text("What are you currently working on? (Enter to skip)").ask() or ""
-        stack    = q.text("Your main tech stack: (e.g. Python, Next.js)").ask() or ""
-        timezone = q.text("Your timezone:").ask() or ""
+        name  = q.text("Your name:").ask() or ""
+        role  = q.text("Your role / what you do:").ask() or ""
+        focus = q.text("What are you currently working on? (Enter to skip):").ask() or ""
     else:
         print("(Press Enter to skip any question)\n")
-        name     = input("Your name: ").strip()
-        role     = input("Your role / what you do: ").strip()
-        focus    = input("What are you currently working on? ").strip()
-        stack    = input("Your main tech stack: ").strip()
-        timezone = input("Your timezone (e.g. America/Chicago): ").strip()
+        name  = input("Your name: ").strip()
+        role  = input("Your role / what you do: ").strip()
+        focus = input("What are you currently working on? ").strip()
+
+    # Auto-detect timezone
+    try:
+        import datetime
+        timezone = str(datetime.datetime.now().astimezone().tzinfo)
+    except Exception:
+        timezone = ""
 
     # Write always-on.md
     lines = ["# Always-On Context\n"]
-    if name:     lines.append(f"## About Me\n- Name: {name}")
-    if role:     lines.append(f"- Role: {role}")
+    if name: lines.append(f"## About Me\n- Name: {name}")
+    if role: lines.append(f"- Role: {role}")
     if timezone: lines.append(f"- Timezone: {timezone}")
-    if focus:    lines.append(f"\n## Current Focus\n- {focus}")
-    if stack:    lines.append(f"\n## My Stack\n- {stack}")
+    if focus: lines.append(f"\n## Current Focus\n- {focus}")
 
-    if any([name, role, focus, stack]):
+    if any([name, role, focus]):
         config.always_on_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print("\n  always-on.md saved")
 
@@ -86,7 +88,7 @@ def _run_onboarding(config, manager, flag_file, q):
 
     # Seed a welcome note so first get_context() has something useful
     from datetime import datetime
-    welcome = f"Cortex initialized. User: {name or 'unknown'}. Focus: {focus or 'not set'}. Stack: {stack or 'not set'}."
+    welcome = f"Cortex initialized. User: {name or 'unknown'}. Focus: {focus or 'not set'}."
     manager.append_to_today(welcome, heading=f"{datetime.now().strftime('%H:%M')} | context")
     print("  Brain seeded with your setup")
 
