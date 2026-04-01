@@ -400,7 +400,9 @@ cortex mcp serve               # MCP server only (no dashboard)
 - macOS service (launchd): ⚠️ written, not verified
 - Linux service (systemd): ⚠️ written, not verified
 
-Found a bug? [Open an issue](https://github.com/daejung83/cortex/issues)
+**Found a bug?** [Open an issue on GitHub](https://github.com/daejung83/cortex/issues)
+
+**Questions?** [Start a discussion](https://github.com/daejung83/cortex/discussions)
 
 ---
 

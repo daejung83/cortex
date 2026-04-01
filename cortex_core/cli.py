@@ -715,7 +715,9 @@ def cmd_build_context(args):
 
 
 def main():
+    from . import __version__
     parser = argparse.ArgumentParser(prog="cortex", description="Cortex — persistent AI memory")
+    parser.add_argument("--version", action="version", version=f"cortex-brain {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     init_p = sub.add_parser("init", help="Initialize brain directory")
