@@ -860,7 +860,9 @@ def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
     async def run_with_agent():
         config = get_config()
         agent = CurationAgent(config)
-        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))
+        config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+        server = uvicorn.Server(config)
+        server.install_signal_handlers = lambda: None  # let asyncio handle signals
         print(f"\n🧠 Cortex running at http://{host}:{port}")
         print(f"   Dashboard  → http://{host}:{port}")
         print(f"   MCP server → http://{host}:{port}/mcp")
@@ -870,4 +872,7 @@ def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
         else:
             await server.serve()
 
-    asyncio.run(run_with_agent())
+    try:
+        asyncio.run(run_with_agent())
+    except KeyboardInterrupt:
+        print("\n  Cortex stopped. Goodbye!\n")
