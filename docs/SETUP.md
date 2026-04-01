@@ -20,18 +20,47 @@ Complete setup instructions for all supported AI tools.
 cortex init
 ```
 
-Interactive prompts:
+Interactive prompts (3 questions + LLM choice):
 - **Name** — how the AI addresses you
 - **Role** — what you do (developer, designer, founder, etc.)
 - **Current focus** — what you're working on right now
-- **Tech stack** — your main tools/languages
-- **Timezone** — for time-aware context
+- **LLM curation** — choose Ollama / OpenAI / Anthropic / skip (arrow keys)
 
-Creates `~/.cortex/brain/` with:
-- `SOUL.md` — AI identity and mandatory behavior rules
-- `always-on.md` — your permanent context
-- `active-context.md` — rebuilt automatically
-- `short-term/`, `long-term/` directories
+> Timezone is auto-detected from your system.
+> Tech stack is learned by the AI over time — no need to type it.
+
+What gets created:
+```
+~/.cortex/
+├── .env                   ← secrets file (LLM keys go here)
+└── brain/
+    ├── SOUL.md            ← AI identity + behavior rules
+    ├── always-on.md       ← your name, role, focus
+    ├── active-context.md  ← rebuilt every 30min
+    ├── short-term/        ← daily timestamped notes
+    └── long-term/         ← curated permanent memory
+```
+
+Example session:
+```
+  ╔═══════════════════════════════════════╗
+  ║   🧠  Cortex — Brain Setup            ║
+  ╚═══════════════════════════════════════╝
+
+? Your name: Derek
+? Your role / what you do: Developer / founder
+? What are you currently working on?: Building a real estate SaaS
+
+? Choose your curation mode: (Use arrow keys)
+ ❯ Ollama — local, free, no API key
+   OpenAI — gpt-5.4-nano, ~$0.001/day
+   Anthropic — claude-haiku, ~$0.001/day
+   Skip — heuristic mode, free, always works
+
+  Brain ready at ~/.cortex/brain
+  Run: cortex start
+  Dashboard: http://localhost:7700
+```
 
 ---
 
