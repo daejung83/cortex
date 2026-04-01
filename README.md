@@ -106,6 +106,28 @@ before responding to anything. This loads your persistent memory and who you are
 
 ---
 
+## LLM Curation (Optional)
+
+By default Cortex uses heuristic curation — fast, free, no API key needed. Works well for most users.
+
+To enable AI-powered distillation:
+
+```bash
+# Option A: Local Ollama (free, no API key — best for Claude Code/Desktop subscribers)
+# Install: https://ollama.ai → ollama pull llama3.2
+export CORTEX_LLM_PROVIDER=ollama
+
+# Option B: OpenAI (cheap — pennies/month)
+export CORTEX_LLM_PROVIDER=openai
+export CORTEX_LLM_API_KEY=sk-...
+
+# Option C: Anthropic API key (NOT your Claude subscription — requires separate API account)
+export CORTEX_LLM_PROVIDER=anthropic
+export CORTEX_LLM_API_KEY=sk-ant-...
+```
+
+> ⚠️ Claude Code and Claude Desktop **subscriptions** use OAuth, not API keys. They can't be used for background curation. Use Ollama for free local AI curation instead.
+
 ## How It Works
 
 ```

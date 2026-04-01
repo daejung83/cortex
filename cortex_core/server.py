@@ -302,17 +302,22 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <p style="font-size:12px;color:var(--muted);margin-top:10px">
               Enable AI curation by setting env vars before <code>cortex start</code>:
             </p>
-            <div class="code-block"># Anthropic (Claude Haiku — recommended, cheap)
-CORTEX_LLM_PROVIDER=anthropic
-CORTEX_LLM_API_KEY=sk-ant-...
+            <div class="code-block"># Option A: Local Ollama (free, no API key — recommended for Claude Code subscribers)
+# Install Ollama first: https://ollama.ai → then: ollama pull llama3.2
+CORTEX_LLM_PROVIDER=ollama
+CORTEX_LLM_MODEL=llama3.2
 
-# OpenAI (GPT-4o-mini)
+# Option B: OpenAI API key (cheap — ~pennies/month for curation)
 CORTEX_LLM_PROVIDER=openai
 CORTEX_LLM_API_KEY=sk-...
 
-# Local Ollama (free, no API key)
-CORTEX_LLM_PROVIDER=ollama
-CORTEX_LLM_MODEL=llama3.2</div>
+# Option C: Anthropic API key (requires separate API account — NOT Claude Code subscription)
+CORTEX_LLM_PROVIDER=anthropic
+CORTEX_LLM_API_KEY=sk-ant-...</div>
+            <p style="font-size:11px;color:var(--muted);margin-top:8px">
+              ⚠️ Claude Code/Desktop <strong>subscriptions</strong> don't include API access — they use different auth.<br>
+              For AI curation without an API key, use <strong>Ollama (local, free)</strong>.
+            </p>
           </div>
         </div>
 
@@ -531,7 +536,7 @@ async function loadConnect() {
     if (d.llm) {
       document.getElementById('llm-status').innerHTML = `<span style="color:var(--green)">✅ ${d.llm.provider} / ${d.llm.model} — AI curation active</span>`;
     } else {
-      document.getElementById('llm-status').innerHTML = `<span style="color:var(--yellow)">⚡ Heuristic mode — no LLM configured (set CORTEX_LLM_PROVIDER to enable AI curation)</span>`;
+      document.getElementById('llm-status').innerHTML = `<span style="color:var(--yellow)">⚡ Heuristic mode — works great for most users. Want smarter curation? Set CORTEX_LLM_PROVIDER=ollama (free, local) or use an OpenAI/Anthropic API key.</span>`;
     }
 
     document.getElementById('claude-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
