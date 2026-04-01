@@ -60,7 +60,7 @@ def get_soul_path(config) -> "Path":
 def read_soul(config) -> str:
     path = get_soul_path(config)
     if path.exists():
-        return path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8", errors="replace")
     return DEFAULT_SOUL
 
 

@@ -129,7 +129,7 @@ class CurationAgent:
             # Append to long-term projects file with date header
             projects_file = self.config.long_term_dir / "projects.md"
             if projects_file.exists():
-                existing = projects_file.read_text(encoding="utf-8")
+                existing = projects_file.read_text(encoding="utf-8", errors="replace")
                 entry = f"\n\n## Update — {yesterday}\n\n{distilled}"
                 # Only append if not already there
                 if yesterday not in existing:
@@ -174,7 +174,7 @@ class CurationAgent:
         - session_summary → long-term/summaries/YYYY-MM.md
         """
         from pathlib import Path as P
-        content = file.read_text(encoding="utf-8")
+        content = file.read_text(encoding="utf-8", errors="replace")
         file_date = file.stem  # YYYY-MM-DD
 
         current_heading = ""
