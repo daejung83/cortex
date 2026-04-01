@@ -39,7 +39,7 @@ def get_llm_fn():
     if provider == "anthropic" and api_key:
         return _make_anthropic_fn(api_key, model or "claude-haiku-4-5")
     elif provider == "openai" and api_key:
-        return _make_openai_fn(api_key, model or "gpt-4o-mini")
+        return _make_openai_fn(api_key, model or "gpt-5.4-nano")
     elif provider == "ollama":
         return _make_ollama_fn(model or "llama3.2")
     else:
@@ -64,12 +64,22 @@ def _make_openai_fn(api_key: str, model: str):
     def call(prompt: str) -> str:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=2048,
-        )
-        return resp.choices[0].message.content
+        # Use Responses API if available (gpt-5.4+), fallback to chat completions
+        try:
+            resp = client.responses.create(
+                model=model,
+                input=prompt,
+                max_output_tokens=2048,
+            )
+            return resp.output_text
+        except (AttributeError, Exception):
+            # Fallback to chat completions for older models
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=2048,
+            )
+            return resp.choices[0].message.content
     return call
 
 

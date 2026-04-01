@@ -117,7 +117,7 @@ To enable AI-powered distillation:
 # Install: https://ollama.ai → ollama pull llama3.2
 export CORTEX_LLM_PROVIDER=ollama
 
-# Option B: OpenAI (cheap — pennies/month)
+# Option B: OpenAI gpt-5.4-nano ($0.20/1M tokens — pennies/month)
 export CORTEX_LLM_PROVIDER=openai
 export CORTEX_LLM_API_KEY=sk-...
 

@@ -307,7 +307,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 CORTEX_LLM_PROVIDER=ollama
 CORTEX_LLM_MODEL=llama3.2
 
-# Option B: OpenAI API key (cheap — ~pennies/month for curation)
+# Option B: OpenAI API key (gpt-5.4-nano — $0.20/1M tokens, ~pennies/month)
 CORTEX_LLM_PROVIDER=openai
 CORTEX_LLM_API_KEY=sk-...
 
@@ -732,7 +732,7 @@ async def api_status():
     brain_path = os.environ.get("CORTEX_BRAIN_PATH", str(Path.home() / ".cortex" / "brain"))
     llm_provider = os.environ.get("CORTEX_LLM_PROVIDER", "")
     llm_model = os.environ.get("CORTEX_LLM_MODEL", "")
-    defaults = {"anthropic": "claude-haiku-4-5", "openai": "gpt-4o-mini", "ollama": "llama3.2"}
+    defaults = {"anthropic": "claude-haiku-4-5", "openai": "gpt-5.4-nano", "ollama": "llama3.2"}
     llm_info = None
     if llm_provider:
         llm_info = {"provider": llm_provider, "model": llm_model or defaults.get(llm_provider, "default")}
