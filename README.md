@@ -235,32 +235,26 @@ Go to Windsurf Settings → MCP Servers → Add:
 
 By default Cortex uses smart heuristic curation — free, no API key, works well for most users.
 
-To enable AI-powered distillation (smarter active-context rebuilds):
+To enable AI-powered distillation, edit `~/.cortex/.env` (created on `cortex init`, never commit this):
 
 ```bash
-# Option A: Local Ollama — free, no API key (best for Claude Code/Desktop subscribers)
-# 1. Install Ollama: https://ollama.ai
-# 2. Run: ollama pull llama3.2
-export CORTEX_LLM_PROVIDER=ollama
+# Option A: Local Ollama - free, no API key (best for Claude subscribers)
+# Install: https://ollama.ai -> then: ollama pull llama3.2
+CORTEX_LLM_PROVIDER=ollama
+CORTEX_LLM_MODEL=llama3.2
 
-# Option B: OpenAI gpt-5.4-nano — $0.20/1M tokens, ~pennies/month
-export CORTEX_LLM_PROVIDER=openai
-export CORTEX_LLM_API_KEY=sk-...
+# Option B: OpenAI gpt-5.4-nano - $0.20/1M tokens, ~pennies/month
+CORTEX_LLM_PROVIDER=openai
+CORTEX_LLM_API_KEY=sk-...
 
-# Option C: Anthropic claude-haiku (requires separate Anthropic API account)
-export CORTEX_LLM_PROVIDER=anthropic
-export CORTEX_LLM_API_KEY=sk-ant-...
-
-# Override default model
-export CORTEX_LLM_MODEL=llama3.1  # or any model name
+# Option C: Anthropic claude-haiku (requires separate API account)
+CORTEX_LLM_PROVIDER=anthropic
+CORTEX_LLM_API_KEY=sk-ant-...
 ```
 
-Then start Cortex normally:
-```bash
-cortex start
-```
+Cortex loads `~/.cortex/.env` automatically on start. Keys never go in project files.
 
-> ⚠️ **Claude Code/Desktop subscriptions** use OAuth auth, not API keys. They **cannot** be used for background curation. Use Ollama (local, free) instead.
+> ⚠️ Claude Code/Desktop **subscriptions** use OAuth, not API keys - cannot be used for curation. Use Ollama instead.
 
 ---
 

@@ -255,21 +255,87 @@ When user references past work:
 
 By default Cortex uses heuristic curation (free, no API key). To enable AI curation:
 
+### Using the secrets file (recommended — keeps keys out of project dirs)
+
+Edit `~/.cortex/.env` (created automatically on `cortex init`):
+
 ```bash
-# Local Ollama (free — recommended for Claude subscribers)
-# Install: https://ollama.ai → ollama pull llama3.2
-export CORTEX_LLM_PROVIDER=ollama
+# ~/.cortex/.env — never commit this file
 
-# OpenAI gpt-5.4-nano (~pennies/month)
-export CORTEX_LLM_PROVIDER=openai
-export CORTEX_LLM_API_KEY=sk-...
+# Option A: Local Ollama (free — recommended for Claude Code/Desktop subscribers)
+# Install Ollama: https://ollama.ai → then: ollama pull llama3.2
+CORTEX_LLM_PROVIDER=ollama
+CORTEX_LLM_MODEL=llama3.2
 
-# Anthropic claude-haiku (requires separate API account, not Claude subscription)
-export CORTEX_LLM_PROVIDER=anthropic
-export CORTEX_LLM_API_KEY=sk-ant-...
+# Option B: OpenAI gpt-5.4-nano (~pennies/month)
+CORTEX_LLM_PROVIDER=openai
+CORTEX_LLM_API_KEY=sk-...
+
+# Option C: Anthropic claude-haiku
+# Requires a separate Anthropic API account — NOT your Claude subscription
+CORTEX_LLM_PROVIDER=anthropic
+CORTEX_LLM_API_KEY=sk-ant-...
 ```
 
-Then `cortex start` as normal. The dashboard will show LLM curation as active.
+Cortex loads `~/.cortex/.env` automatically on start. Never put API keys in project files.
+
+### Using environment variables
+
+```bash
+export CORTEX_LLM_PROVIDER=openai
+export CORTEX_LLM_API_KEY=sk-...
+cortex start
+```
+
+> ⚠️ **Claude Code/Desktop subscriptions** use OAuth, not API keys — they can't be used for background curation. Use Ollama (local, free) instead.
+
+---
+
+## How Notes Work
+
+Notes are the core of Cortex memory. When the AI calls `log_note()`, it writes a timestamped entry to today's short-term file:
+
+```markdown
+## 14:23 | decision
+Decided to use Railway over Heroku — Python backends need long-running processes.
+```
+
+Notes flow through the entire memory pipeline:
+
+```
+log_note()
+    ↓
+short-term/YYYY-MM-DD.md     ← raw timestamped entry
+
+Active-context rebuild (every 30min)
+    ↓
+active-context.md            ← last 48hrs distilled, auto-loaded every session
+
+On-demand search
+    ↓
+search_brain("query", days=7) ← AI searches when you reference past work
+
+After 30 days (promote-on-prune)
+    ↓
+long-term/decisions.md       ← decision entries promoted here
+long-term/insights.md        ← insight entries promoted here
+long-term/summaries/YYYY-MM  ← session summaries promoted here
+
+Forever
+    ↓
+search_long_term("query")    ← finds promoted entries across all time
+```
+
+**Entry types and what they do:**
+
+| Type | When to use | Promoted to |
+|------|-------------|-------------|
+| `decision` | Any choice made | `long-term/decisions.md` |
+| `progress` | Work completed | Project file (via `update_project`) |
+| `insight` | Lesson learned | `long-term/insights.md` |
+| `next_steps` | What's queued | Discarded at 30 days (stale) |
+| `context` | Background info | Discarded at 30 days |
+| `session_summary` | End of session | `long-term/summaries/YYYY-MM.md` |
 
 ---
 

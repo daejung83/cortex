@@ -818,9 +818,24 @@ async def mcp_endpoint(request: Request):
 # Server entrypoint
 # ─────────────────────────────────────────────
 
+def _load_secrets():
+    """Load ~/.cortex/.env if it exists — keeps API keys out of project dirs."""
+    secrets_file = Path.home() / ".cortex" / ".env"
+    if secrets_file.exists():
+        for line in secrets_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, val = line.partition("=")
+                key = key.strip()
+                val = val.strip().strip('"').strip("'")
+                if key and val and key not in os.environ:
+                    os.environ[key] = val
+
+
 def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
     import uvicorn
 
+    _load_secrets()
     os.environ["CORTEX_PORT"] = str(port)
 
     async def run_with_agent():

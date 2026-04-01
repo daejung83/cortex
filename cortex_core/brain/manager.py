@@ -53,6 +53,21 @@ class BrainManager:
                 title = fname.replace(".md", "").capitalize()
                 f.write_text(f"# {title}\n\n_Add entries here._\n", encoding="utf-8")
 
+        # Seed ~/.cortex/.env secrets template
+        secrets_file = self.config.root.parent / ".env"
+        if not secrets_file.exists():
+            secrets_file.write_text(
+                "# Cortex secrets — never commit this file\n"
+                "# Uncomment and fill in to enable LLM curation\n\n"
+                "# CORTEX_LLM_PROVIDER=openai\n"
+                "# CORTEX_LLM_API_KEY=sk-...\n\n"
+                "# CORTEX_LLM_PROVIDER=anthropic\n"
+                "# CORTEX_LLM_API_KEY=sk-ant-...\n\n"
+                "# CORTEX_LLM_PROVIDER=ollama\n"
+                "# CORTEX_LLM_MODEL=llama3.2\n",
+                encoding="utf-8"
+            )
+
         print(f"✅ Brain initialized at {self.config.root}")
 
     def today_file(self) -> Path:
