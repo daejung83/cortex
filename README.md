@@ -29,7 +29,14 @@ Every AI session starts from zero. You re-explain your stack, your project names
 pip install cortex-brain
 ```
 
-> **Windows users:** `cortex` may not be on PATH after install. Use `python -m cortex_core.cli` instead of `cortex` in all commands below.
+> **macOS / Linux:** `cortex` is available immediately after install.
+>
+> **Windows:** `cortex` may not be on PATH. Run this once in PowerShell to fix it permanently, then restart PowerShell:
+> ```powershell
+> $p = python -m site --user-scripts
+> [Environment]::SetEnvironmentVariable("PATH","$env:PATH;$p","User")
+> ```
+> Until then, use `python -m cortex_core.cli` as a drop-in for every `cortex` command.
 
 ---
 
