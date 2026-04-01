@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cortex-brain"
-version = "0.1.0"
+version = "0.1.0b1"
 description = "Persistent memory for AI — across every tool, every session"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,6 +44,7 @@ Documentation = "https://github.com/daejung83/cortex/blob/main/docs/SPEC.md"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["cortex_core*"]
+exclude = ["cortex-core*", "tests*"]
 
 [tool.ruff]
 line-length = 100

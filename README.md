@@ -385,7 +385,15 @@ cortex mcp serve               # MCP server only (no dashboard)
 
 ## Status
 
-🚧 **Early development** — not ready for public use yet.
+🧪 **v0.1.0-beta** — functional and usable, some features untested across all platforms.
+
+- Core memory system: ✅ tested
+- MCP + dashboard: ✅ tested  
+- Windows: ✅ tested
+- macOS service (launchd): ⚠️ written, not verified
+- Linux service (systemd): ⚠️ written, not verified
+
+Found a bug? [Open an issue](https://github.com/daejung83/cortex/issues)
 
 ---
 
