@@ -31,11 +31,15 @@ pip install cortex-brain
 
 > **macOS / Linux:** `cortex` is available immediately after install.
 >
-> **Windows:** `cortex` may not be on PATH. Run this once in PowerShell to fix it permanently, then restart PowerShell:
-> ```powershell
-> $p = python -m site --user-scripts
-> [Environment]::SetEnvironmentVariable("PATH","$env:PATH;$p","User")
-> ```
+> **Windows (Windows Store Python):** `cortex` won't be on PATH automatically. Fix it once:
+> 1. Open **Start → System → Advanced system settings → Environment Variables**
+> 2. Under **User variables**, find `PATH` → **Edit → New** → paste:
+>    `%LOCALAPPDATA%\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts`
+>    *(Adjust `3.13` / package name to match your Python version)*
+> 3. Click OK and **restart PowerShell**
+>
+> Not sure of your package name? Run: `Get-ChildItem "$env:LOCALAPPDATA\Packages" | Where-Object {$_.Name -like "*Python*"}`
+>
 > Until then, use `python -m cortex_core.cli` as a drop-in for every `cortex` command.
 
 ---
@@ -397,8 +401,8 @@ cortex mcp serve               # MCP server only (no dashboard)
 - Core memory system: ✅ tested
 - MCP + dashboard: ✅ tested  
 - Windows: ✅ tested
-- macOS service (launchd): ⚠️ written, not verified
-- Linux service (systemd): ⚠️ written, not verified
+- macOS service (launchd): ✅ verified
+- Linux service (systemd): ⚠️ written, not yet verified
 
 **Found a bug?** [Open an issue on GitHub](https://github.com/daejung83/cortex/issues)
 
