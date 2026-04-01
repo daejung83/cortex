@@ -254,6 +254,8 @@ CORTEX_LLM_API_KEY=sk-ant-...
 
 Cortex loads `~/.cortex/.env` automatically on start. Keys never go in project files.
 
+> **After editing `.env`:** stop Cortex (`Ctrl+C`) and run `cortex start` again — changes are only loaded on startup.
+
 > ⚠️ Claude Code/Desktop **subscriptions** use OAuth, not API keys - cannot be used for curation. Use Ollama instead.
 
 ---

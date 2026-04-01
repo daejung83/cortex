@@ -279,6 +279,8 @@ CORTEX_LLM_API_KEY=sk-ant-...
 
 Cortex loads `~/.cortex/.env` automatically on start. Never put API keys in project files.
 
+> **After editing `.env`:** stop Cortex (`Ctrl+C`) and run `cortex start` again — changes are only loaded on startup.
+
 ### Using environment variables
 
 ```bash
