@@ -163,6 +163,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <button class="nav-item" onclick="showTab('files')" id="nav-files">
         <span class="icon">📁</span> Brain Files
       </button>
+      <button class="nav-item" onclick="showTab('learnings')" id="nav-learnings">
+        <span class="icon">🧬</span> Learnings
+      </button>
+      <button class="nav-item" onclick="showTab('soul')" id="nav-soul">
+        <span class="icon">💫</span> SOUL.md
+      </button>
       <button class="nav-item" onclick="showTab('connect')" id="nav-connect">
         <span class="icon">🔌</span> Connect AI
       </button>
@@ -189,7 +195,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div class="stats-grid" id="stats">
           <div class="stat-card"><div class="stat-value" id="stat-files">—</div><div class="stat-label">Brain files</div></div>
           <div class="stat-card"><div class="stat-value" id="stat-days">—</div><div class="stat-label">Days of memory</div></div>
-          <div class="stat-card"><div class="stat-value" id="stat-topics">—</div><div class="stat-label">Long-term topics</div></div>
+          <div class="stat-card"><div class="stat-value" id="stat-projects">—</div><div class="stat-label">Active projects</div></div>
         </div>
         <div class="card">
           <div class="card-header">
@@ -260,6 +266,32 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         </div>
       </div>
 
+      <!-- Learnings Tab -->
+      <div class="tab-content" id="tab-learnings">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">What AI Has Learned About You</span>
+            <span class="badge">AI-maintained · max 35 lines</span>
+          </div>
+          <div class="card-body"><pre id="learnings-content">Loading...</pre></div>
+        </div>
+      </div>
+
+      <!-- SOUL Tab -->
+      <div class="tab-content" id="tab-soul">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">SOUL.md — AI Identity & Memory Contract</span>
+            <button class="copy-btn" onclick="saveSoul()">Save</button>
+          </div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Edit who your AI is and what it MUST do. Loaded on every session.</p>
+            <textarea id="soul-content" rows="24" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.6;outline:none;resize:vertical"></textarea>
+            <div id="soul-status" style="margin-top:8px;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Connect Tab -->
       <div class="tab-content" id="tab-connect">
         <div class="card">
@@ -311,7 +343,7 @@ function showTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   document.getElementById('nav-' + tab).classList.add('active');
   currentTab = tab;
-  const titles = {context:'Active Context', search:'Search', longterm:'Long-Term Memory', notes:'Add Note', files:'Brain Files', connect:'Connect AI'};
+  const titles = {context:'Active Context', search:'Search', longterm:'Long-Term Memory', notes:'Add Note', files:'Brain Files', learnings:'Learnings', soul:'SOUL.md', connect:'Connect AI'};
   document.getElementById('page-title').textContent = titles[tab];
   loadTab(tab);
 }
@@ -322,6 +354,8 @@ async function loadTab(tab) {
   if (tab === 'context') await loadContext();
   else if (tab === 'longterm') await loadLongTerm();
   else if (tab === 'files') await loadFiles();
+  else if (tab === 'learnings') await loadLearnings();
+  else if (tab === 'soul') await loadSoul();
   else if (tab === 'connect') await loadConnect();
 }
 
@@ -334,7 +368,7 @@ async function loadContext() {
     const s = await api('/api/stats');
     document.getElementById('stat-files').textContent = s.total_files;
     document.getElementById('stat-days').textContent = s.days_of_memory;
-    document.getElementById('stat-topics').textContent = s.long_term_topics;
+    document.getElementById('stat-projects').textContent = s.projects || s.long_term_topics;
   } catch(e) { console.error(e); }
 }
 
@@ -429,6 +463,33 @@ async function loadConnect() {
     document.getElementById('mcp-port-2').textContent = port;
     document.getElementById('mcp-status').innerHTML = `<span style="color:var(--green)">✅ MCP server running on port ${port}</span>`;
   } catch(e) {}
+}
+
+async function loadLearnings() {
+  try {
+    const d = await api('/api/learnings');
+    document.getElementById('learnings-content').textContent = d.content || '(no learnings yet)';
+  } catch(e) { document.getElementById('learnings-content').textContent = 'Error loading.'; }
+}
+
+async function loadSoul() {
+  try {
+    const d = await api('/api/soul');
+    document.getElementById('soul-content').value = d.content;
+  } catch(e) {}
+}
+
+async function saveSoul() {
+  const content = document.getElementById('soul-content').value;
+  try {
+    await api('/api/soul', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({content})
+    });
+    document.getElementById('soul-status').innerHTML = '<span style="color:var(--green)">✅ Saved</span>';
+    setTimeout(() => document.getElementById('soul-status').innerHTML = '', 3000);
+  } catch(e) { document.getElementById('soul-status').innerHTML = '<span style="color:var(--red)">Failed to save</span>'; }
 }
 
 function copyClaudeConfig() {
@@ -528,6 +589,31 @@ async def api_files():
     return {"short_term": short, "long_term": long_}
 
 
+@app.get("/api/learnings")
+async def api_learnings():
+    config = get_config()
+    manager = BrainManager(config)
+    return {"content": manager.get_learnings_with_stale_check()}
+
+
+@app.get("/api/soul")
+async def api_get_soul():
+    from .brain.soul import read_soul
+    config = get_config()
+    return {"content": read_soul(config)}
+
+
+@app.post("/api/soul")
+async def api_save_soul(request: Request):
+    from .brain.soul import get_soul_path
+    config = get_config()
+    body = await request.json()
+    content = body.get("content", "")
+    path = get_soul_path(config)
+    path.write_text(content)
+    return {"ok": True}
+
+
 @app.get("/api/stats")
 async def api_stats():
     config = get_config()
@@ -540,13 +626,19 @@ async def api_stats():
         days = len(files)
         total += len(files)
     if config.long_term_dir.exists():
-        lf = list(config.long_term_dir.glob("*.md"))
+        lf = list(config.long_term_dir.rglob("*.md"))
         total += len(lf)
     if config.active_context_file.exists():
         total += 1
     if config.always_on_file.exists():
         total += 1
-    return {"total_files": total, "days_of_memory": days, "long_term_topics": len(topics)}
+    projects = manager.list_projects()
+    return {
+        "total_files": total,
+        "days_of_memory": days,
+        "long_term_topics": len(topics),
+        "projects": len(projects),
+    }
 
 
 @app.get("/api/status")

@@ -3,7 +3,7 @@ BrainManager — read/write operations on brain files.
 """
 
 from pathlib import Path
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 import re
 from .schema import BrainConfig
@@ -324,6 +324,87 @@ class BrainManager:
         with decisions_file.open("a") as f:
             f.write(entry)
         return str(decisions_file)
+
+    def read_decisions(self, days: int = 90) -> str:
+        """Read decisions.md filtered to last N days. Use days=0 for all."""
+        path = self.config.long_term_dir / "decisions.md"
+        if not path.exists():
+            return "_No decisions logged yet._"
+        if days == 0:
+            return path.read_text()
+
+        cutoff = date.today() - timedelta(days=days)
+        lines_out = []
+        include = True
+        header_added = False
+
+        for line in path.read_text().splitlines():
+            # Section headers like "## 2026-04-01 14:23"
+            if line.startswith("## "):
+                date_match = re.match(r"## (\d{4}-\d{2}-\d{2})", line)
+                if date_match:
+                    entry_date = date.fromisoformat(date_match.group(1))
+                    include = entry_date >= cutoff
+                else:
+                    include = True
+            if include:
+                if not header_added:
+                    lines_out.append(f"# Decisions (last {days} days)\n")
+                    header_added = True
+                lines_out.append(line)
+
+        return "\n".join(lines_out) if lines_out else f"_No decisions in the last {days} days._"
+
+    def search_long_term(self, query: str, max_results: int = 8) -> list:
+        """Search only long-term files — decisions, insights, summaries, projects."""
+        from ..search.searcher import BrainSearcher, SearchResult
+        import copy
+
+        # Temporarily override to search only long-term
+        long_term_files = []
+        if self.config.long_term_dir.exists():
+            long_term_files.extend(self.config.long_term_dir.rglob("*.md"))
+
+        terms = query.lower().split()
+        results = []
+
+        for path in long_term_files:
+            try:
+                lines = path.read_text().splitlines()
+            except Exception:
+                continue
+            current_heading = path.stem
+            for i, line in enumerate(lines, 1):
+                if line.startswith("#"):
+                    current_heading = line.lstrip("#").strip()
+                    continue
+                line_lower = line.lower()
+                matches = sum(1 for t in terms if t in line_lower)
+                if matches > 0:
+                    from ..search.searcher import SearchResult
+                    results.append(SearchResult(
+                        file=path,
+                        line_no=i,
+                        heading=current_heading,
+                        snippet=line.strip()[:120],
+                        score=matches / len(terms),
+                    ))
+
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results[:max_results]
+
+    def list_monthly_summaries(self) -> list[str]:
+        summaries_dir = self.config.long_term_dir / "summaries"
+        if not summaries_dir.exists():
+            return []
+        return [f.stem for f in sorted(summaries_dir.glob("*.md"), reverse=True)]
+
+    def get_monthly_summary(self, month: str) -> str:
+        """Get summary for a specific month (YYYY-MM)."""
+        path = self.config.long_term_dir / "summaries" / f"{month}.md"
+        if path.exists():
+            return path.read_text()
+        return f"No summary for {month}"
 
     def recent_short_term(self, days: int = 3) -> list[tuple[str, str]]:
         """Return (date_str, content) for the last N short-term files."""

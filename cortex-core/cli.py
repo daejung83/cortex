@@ -32,6 +32,49 @@ def cmd_init(args):
     manager = BrainManager(config)
     manager.init()
 
+    # Onboarding — only if always-on is still the default template
+    always_on = manager.read_always_on()
+    if "[Your name]" in always_on and not args.skip_onboarding:
+        print("\n🧠 Let's set up your brain. (Press Enter to skip any question)\n")
+
+        name = input("Your name: ").strip()
+        role = input("Your role / what you do: ").strip()
+        focus = input("What are you currently working on? ").strip()
+        stack = input("Your main tech stack: ").strip()
+        timezone = input("Your timezone (e.g. America/Chicago): ").strip()
+
+        lines = ["# Always-On Context\n"]
+        if name:
+            lines.append(f"## About Me\n- Name: {name}")
+        if role:
+            lines.append(f"- Role: {role}")
+        if timezone:
+            lines.append(f"- Timezone: {timezone}")
+        if focus:
+            lines.append(f"\n## Current Focus\n- {focus}")
+        if stack:
+            lines.append(f"\n## My Stack\n- {stack}")
+
+        if any([name, role, focus, stack]):
+            config.always_on_file.write_text("\n".join(lines) + "\n")
+            print("\n✅ always-on.md created")
+
+        # Seed first project if given
+        if focus:
+            proj_name = input(f"\nProject name for '{focus[:40]}...' (or Enter to skip): ").strip() if len(focus) > 40 else input(f"\nProject name for '{focus}' (or Enter to skip): ").strip()
+            if proj_name:
+                manager.update_project(
+                    name=proj_name,
+                    status="In progress",
+                    focus=focus,
+                    stack=stack or None,
+                )
+                print(f"✅ Project '{proj_name}' created")
+
+    print(f"\n🧠 Brain ready at {config.root}")
+    print(f"   Run: cortex start")
+    print(f"   Dashboard: http://localhost:7700\n")
+
 
 def cmd_serve(args):
     from .mcp.server import serve
@@ -86,7 +129,8 @@ def main():
     parser = argparse.ArgumentParser(prog="cortex", description="Cortex — persistent AI memory")
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("init", help="Initialize brain directory")
+    init_p = sub.add_parser("init", help="Initialize brain directory")
+    init_p.add_argument("--skip-onboarding", action="store_true", help="Skip interactive setup")
 
     serve_p = sub.add_parser("mcp", help="MCP server commands")
     serve_sub = serve_p.add_subparsers(dest="mcp_command")

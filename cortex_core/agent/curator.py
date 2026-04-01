@@ -141,21 +141,96 @@ class CurationAgent:
             logger.error(f"Distillation failed: {e}")
 
     async def prune_old_files(self):
-        """Remove short-term files older than retention_days."""
+        """
+        Promote important entries then remove short-term files older than retention_days.
+        Decisions + insights get promoted to long-term before deletion — nothing important is lost.
+        """
         if not self.config.short_term_dir.exists():
             return
+
+        from ..brain.manager import BrainManager
+        manager = BrainManager(self.config)
         cutoff = date.today() - timedelta(days=self.retention_days)
         pruned = 0
+
         for f in self.config.short_term_dir.glob("*.md"):
             try:
                 file_date = date.fromisoformat(f.stem)
                 if file_date < cutoff:
+                    await self._promote_entries(f, manager)
                     f.unlink()
                     pruned += 1
             except ValueError:
                 pass
+
         if pruned:
-            logger.info(f"Pruned {pruned} old short-term files")
+            logger.info(f"Pruned {pruned} old short-term files (important entries promoted)")
+
+    async def _promote_entries(self, file: Path, manager):
+        """
+        Extract tagged entries from a short-term file before deletion.
+        - decision entries → long-term/decisions.md
+        - insight entries → long-term/insights.md
+        - session_summary → long-term/summaries/YYYY-MM.md
+        """
+        from pathlib import Path as P
+        content = file.read_text()
+        file_date = file.stem  # YYYY-MM-DD
+
+        current_heading = ""
+        current_type = None
+        current_lines = []
+
+        def flush():
+            if not current_lines or not current_type:
+                return
+            text = "\n".join(current_lines).strip()
+            if not text:
+                return
+
+            if current_type == "decision":
+                self._append_to_longterm("decisions.md", file_date, current_heading, text)
+            elif current_type == "insight":
+                self._append_to_longterm("insights.md", file_date, current_heading, text)
+            elif current_type == "session_summary":
+                self._append_to_monthly_summary(file_date, text)
+
+        for line in content.splitlines():
+            if line.startswith("## "):
+                flush()
+                current_heading = line[3:].strip()
+                # Detect type from heading format: "HH:MM | decision"
+                current_type = None
+                current_lines = []
+                if " | " in current_heading:
+                    parts = current_heading.split(" | ", 1)
+                    if len(parts) == 2:
+                        current_type = parts[1].strip().lower().replace(" ", "_")
+            else:
+                if line.strip():
+                    current_lines.append(line)
+
+        flush()
+
+    def _append_to_longterm(self, filename: str, date_str: str, heading: str, text: str):
+        target = self.config.long_term_dir / filename
+        entry = f"\n## {date_str} — {heading}\n{text}\n"
+        with target.open("a") as f:
+            f.write(entry)
+
+    def _append_to_monthly_summary(self, date_str: str, text: str):
+        """Append session summary to long-term/summaries/YYYY-MM.md"""
+        try:
+            month = date_str[:7]  # YYYY-MM
+        except Exception:
+            return
+        summaries_dir = self.config.long_term_dir / "summaries"
+        summaries_dir.mkdir(parents=True, exist_ok=True)
+        target = summaries_dir / f"{month}.md"
+        if not target.exists():
+            target.write_text(f"# Session Summaries — {month}\n\n")
+        with target.open("a") as f:
+            f.write(f"\n## {date_str}\n{text}\n")
 
     async def run(self):
         """Main agent loop."""

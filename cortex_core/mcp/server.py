@@ -169,8 +169,41 @@ TOOLS = [
     },
     {
         "name": "get_decisions",
-        "description": "Get long-term decisions log.",
-        "inputSchema": {"type": "object", "properties": {}, "required": []},
+        "description": "Get decisions log. Default: last 90 days. Use days=0 for full history.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "default": 90, "description": "How many days back. 0 = all time."},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "search_long_term",
+        "description": (
+            "Search only long-term memory — decisions, insights, monthly summaries, project history. "
+            "Use this for finding things older than 30 days that have been promoted from short-term. "
+            "For recent work use search_brain(query, days=N) instead."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "What to search for"},
+                "max_results": {"type": "integer", "default": 8},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_summary",
+        "description": "Get monthly session summary for a specific month (YYYY-MM format). Use to recall what was happening in a past month.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "month": {"type": "string", "description": "Month in YYYY-MM format, e.g. '2026-03'"},
+            },
+            "required": ["month"],
+        },
     },
     {
         "name": "get_learnings",
@@ -317,7 +350,24 @@ def call_tool(name: str, args: dict) -> str:
         )
 
     elif name == "get_decisions":
-        return manager.read_long_term("decisions")
+        days = args.get("days", 90)
+        return manager.read_decisions(days=days)
+
+    elif name == "search_long_term":
+        query = args.get("query", "")
+        max_results = args.get("max_results", 8)
+        results = manager.search_long_term(query, max_results=max_results)
+        if not results:
+            return f"No long-term results for: {query}"
+        lines = [f"**Long-term search: '{query}'** — {len(results)} results\n"]
+        for r in results:
+            rel = str(r.file.relative_to(manager.config.long_term_dir))
+            lines.append(f"📚 `{rel}` — **{r.heading}**\n> {r.snippet}\n")
+        return "\n".join(lines)
+
+    elif name == "get_summary":
+        month = args.get("month", "")
+        return manager.get_monthly_summary(month)
 
     elif name == "get_long_term":
         topic = args.get("topic", "")
