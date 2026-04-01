@@ -74,9 +74,76 @@ def cmd_init(args):
                 )
                 print(f"✅ Project '{proj_name}' created")
 
+        # LLM setup
+        _setup_llm(config)
+
     print(f"\n🧠 Brain ready at {config.root}")
     print(f"   Run: cortex start")
     print(f"   Dashboard: http://localhost:7700\n")
+
+
+def _setup_llm(config):
+    """Interactive LLM setup during init."""
+    secrets_file = config.root.parent / ".env"
+
+    print("\n" + "-" * 50)
+    print("LLM Curation (optional)")
+    print("-" * 50)
+    print("""
+Cortex works great in heuristic mode - free, no API key.
+
+With an LLM, it produces smarter summaries by actually
+understanding what mattered in each session.
+
+  1) Ollama  - local, free, no API key needed
+               (recommended for Claude Code/Desktop subscribers)
+  2) OpenAI  - gpt-5.4-nano, ~pennies/month
+  3) Skip    - use heuristic mode (free, always works)
+""")
+
+    choice = input("Choose [1/2/3] (default: 3): ").strip() or "3"
+
+    if choice == "1":
+        model = input("Ollama model (default: llama3.2): ").strip() or "llama3.2"
+        _write_secret(secrets_file, "CORTEX_LLM_PROVIDER", "ollama")
+        _write_secret(secrets_file, "CORTEX_LLM_MODEL", model)
+        print(f"\n  Ollama configured ({model})")
+        print(f"  Make sure Ollama is running: https://ollama.ai")
+        print(f"  Pull the model: ollama pull {model}")
+
+    elif choice == "2":
+        api_key = input("OpenAI API key (sk-...): ").strip()
+        if api_key:
+            _write_secret(secrets_file, "CORTEX_LLM_PROVIDER", "openai")
+            _write_secret(secrets_file, "CORTEX_LLM_API_KEY", api_key)
+            _write_secret(secrets_file, "CORTEX_LLM_MODEL", "gpt-5.4-nano")
+            print(f"\n  OpenAI gpt-5.4-nano configured")
+            print(f"  Key saved to {secrets_file}")
+        else:
+            print("\n  No key entered - using heuristic mode.")
+    else:
+        print("\n  Heuristic mode - fast, free, no setup needed.")
+        print(f"  Enable LLM anytime: edit {secrets_file}")
+
+    print("-" * 50)
+
+
+def _write_secret(secrets_file, key: str, value: str):
+    """Write or update a key in the secrets file."""
+    content = secrets_file.read_text(encoding="utf-8") if secrets_file.exists() else ""
+    lines = content.splitlines()
+    new_lines = []
+    updated = False
+    for line in lines:
+        stripped = line.lstrip("# ").split("=")[0].strip()
+        if stripped == key:
+            new_lines.append(f"{key}={value}")
+            updated = True
+        else:
+            new_lines.append(line)
+    if not updated:
+        new_lines.append(f"{key}={value}")
+    secrets_file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
 
 def cmd_serve(args):
