@@ -860,8 +860,8 @@ def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
     async def run_with_agent():
         config = get_config()
         agent = CurationAgent(config)
-        config = uvicorn.Config(app, host=host, port=port, log_level="warning")
-        server = uvicorn.Server(config)
+        uvi_config = uvicorn.Config(app, host=host, port=port, log_level="warning")
+        server = uvicorn.Server(uvi_config)
         server.install_signal_handlers = lambda: None  # let asyncio handle signals
         print(f"\n🧠 Cortex running at http://{host}:{port}")
         print(f"   Dashboard  → http://{host}:{port}")
