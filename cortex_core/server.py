@@ -296,6 +296,27 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="tab-content" id="tab-connect">
 
         <div class="card">
+          <div class="card-header"><span class="card-title">LLM Curation</span></div>
+          <div class="card-body">
+            <div id="llm-status" class="loading">Checking...</div>
+            <p style="font-size:12px;color:var(--muted);margin-top:10px">
+              Enable AI curation by setting env vars before <code>cortex start</code>:
+            </p>
+            <div class="code-block"># Anthropic (Claude Haiku — recommended, cheap)
+CORTEX_LLM_PROVIDER=anthropic
+CORTEX_LLM_API_KEY=sk-ant-...
+
+# OpenAI (GPT-4o-mini)
+CORTEX_LLM_PROVIDER=openai
+CORTEX_LLM_API_KEY=sk-...
+
+# Local Ollama (free, no API key)
+CORTEX_LLM_PROVIDER=ollama
+CORTEX_LLM_MODEL=llama3.2</div>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header">
             <span class="card-title">MCP Server Status</span>
             <span class="badge green" id="mcp-status-badge">Checking...</span>
@@ -506,6 +527,13 @@ async function loadConnect() {
     document.getElementById('mcp-status-badge').textContent = '● Connected';
     document.getElementById('mcp-status-badge').style.color = 'var(--green)';
 
+    // LLM status
+    if (d.llm) {
+      document.getElementById('llm-status').innerHTML = `<span style="color:var(--green)">✅ ${d.llm.provider} / ${d.llm.model} — AI curation active</span>`;
+    } else {
+      document.getElementById('llm-status').innerHTML = `<span style="color:var(--yellow)">⚡ Heuristic mode — no LLM configured (set CORTEX_LLM_PROVIDER to enable AI curation)</span>`;
+    }
+
     document.getElementById('claude-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
     document.getElementById('claudecode-cmd').textContent = `claude mcp add cortex --transport http ${url}`;
     document.getElementById('claudecode-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
@@ -697,7 +725,13 @@ async def api_stats():
 async def api_status():
     port = int(os.environ.get("CORTEX_PORT", "7700"))
     brain_path = os.environ.get("CORTEX_BRAIN_PATH", str(Path.home() / ".cortex" / "brain"))
-    return {"status": "ok", "port": port, "brain_path": brain_path}
+    llm_provider = os.environ.get("CORTEX_LLM_PROVIDER", "")
+    llm_model = os.environ.get("CORTEX_LLM_MODEL", "")
+    defaults = {"anthropic": "claude-haiku-4-5", "openai": "gpt-4o-mini", "ollama": "llama3.2"}
+    llm_info = None
+    if llm_provider:
+        llm_info = {"provider": llm_provider, "model": llm_model or defaults.get(llm_provider, "default")}
+    return {"status": "ok", "port": port, "brain_path": brain_path, "llm": llm_info}
 
 
 # ─────────────────────────────────────────────
