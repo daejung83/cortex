@@ -7,17 +7,36 @@ Complete setup instructions for all supported AI tools.
 ## Prerequisites
 
 - Python 3.11+
-- `pip install cortex-brain`
-- Cortex server running: `cortex start`
 
-> **Windows users:** If `cortex` isn't on PATH, use `python -m cortex_core.cli` instead.
+### Install
+
+**macOS / Linux:**
+```bash
+pip install cortex-brain
+# cortex command available immediately in your terminal
+```
+
+**Windows:**
+```powershell
+pip install cortex-brain
+# If 'cortex' is not recognized, use this instead for all commands:
+python -m cortex_core.cli
+```
+
+> **Windows PATH tip:** The installer will warn `cortex.exe is installed in ... which is not on PATH`. You can either add that Scripts folder to your PATH, or just use `python -m cortex_core.cli` as a drop-in replacement for every `cortex` command in this guide.
 
 ---
 
 ## Step 1 — Initialize Your Brain
 
+**macOS / Linux:**
 ```bash
 cortex init
+```
+
+**Windows:**
+```powershell
+python -m cortex_core.cli init
 ```
 
 Interactive prompts (3 questions + LLM choice):
@@ -74,32 +93,36 @@ Open `http://localhost:7700` to see your dashboard.
 
 ### Auto-start on login (recommended)
 
-Keep Cortex running in the background automatically:
-
 **macOS:**
 ```bash
 cortex service install
-# Installs a launchd plist — starts on login, restarts on crash
-# Logs: ~/.cortex/cortex.log
+```
+Installs `~/Library/LaunchAgents/ai.cortex.brain.plist`. Starts now and on every login. Restarts automatically if it crashes.
+```bash
+cortex service status      # check if running
+cortex service uninstall   # remove
+tail -f ~/.cortex/cortex.log  # view logs
 ```
 
 **Linux:**
 ```bash
 cortex service install
-# Installs a systemd user service — starts on login
-# Logs: journalctl --user -u cortex -f
+```
+Installs `~/.config/systemd/user/cortex.service`. Enabled for your user — no sudo needed.
+```bash
+cortex service status                    # check
+cortex service uninstall                 # remove
+journalctl --user -u cortex -f          # view logs
 ```
 
 **Windows:**
 ```powershell
 python -m cortex_core.cli service install
-# Adds a .bat to Windows startup folder — starts on login
 ```
-
-**Manage the service:**
-```bash
-cortex service status     # check if running
-cortex service uninstall  # remove auto-start
+Writes a `.bat` to your Windows Startup folder — runs on login without admin rights.
+```powershell
+python -m cortex_core.cli service status
+python -m cortex_core.cli service uninstall
 ```
 
 ---
@@ -110,8 +133,14 @@ cortex service uninstall  # remove auto-start
 
 One command, works in every project forever:
 
+**macOS / Linux:**
 ```bash
 cortex init-global
+```
+
+**Windows:**
+```powershell
+python -m cortex_core.cli init-global
 ```
 
 Creates:
@@ -123,11 +152,16 @@ Then restart your AI tools.
 
 ### Option B: Per-Project Setup
 
-Run inside any project folder:
-
+**macOS / Linux:**
 ```bash
 cd /path/to/my-project
 cortex init-project
+```
+
+**Windows:**
+```powershell
+cd F:\Projects\my-project
+python -m cortex_core.cli init-project
 ```
 
 Creates in the project root:
