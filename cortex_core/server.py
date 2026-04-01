@@ -294,32 +294,57 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
       <!-- Connect Tab -->
       <div class="tab-content" id="tab-connect">
+
         <div class="card">
-          <div class="card-header"><span class="card-title">Connect to Claude Desktop</span></div>
-          <div class="card-body">
-            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Add this to your <code>claude_desktop_config.json</code>:</p>
-            <div class="code-block" id="claude-config"></div>
-            <button class="copy-btn" style="margin-top:10px" onclick="copyClaudeConfig()">Copy</button>
+          <div class="card-header">
+            <span class="card-title">MCP Server Status</span>
+            <span class="badge green" id="mcp-status-badge">Checking...</span>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Connect to Cursor / Windsurf</span></div>
           <div class="card-body">
-            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Add to your MCP settings:</p>
-            <div class="code-block">{
-  "cortex": {
-    "url": "http://127.0.0.1:<span id="mcp-port-2">7700</span>/mcp"
-  }
-}</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><span class="card-title">Test Connection</span></div>
-          <div class="card-body">
-            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">MCP server status:</p>
             <div id="mcp-status" class="loading">Checking...</div>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Claude Desktop</span></div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+              Add to <code>%APPDATA%\Claude\claude_desktop_config.json</code> (Windows) or<br>
+              <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (Mac)
+            </p>
+            <div class="code-block" id="claude-config"></div>
+            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claude-config')">Copy</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Claude Code (CLI)</span></div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Run this command — Claude Code auto-detects the config:</p>
+            <div class="code-block" id="claudecode-cmd"></div>
+            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claudecode-cmd')">Copy</button>
+            <p style="font-size:12px;color:var(--muted);margin-top:12px;margin-bottom:8px">
+              Or manually create <code>~/.claude/.mcp.json</code>:<br>
+              <span style="color:var(--red);font-size:11px">⚠️ Do NOT put mcpServers in settings.json — Claude Code silently ignores it there.</span>
+            </p>
+            <div class="code-block" id="claudecode-config"></div>
+            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('claudecode-config')">Copy</button>
+            <p style="font-size:12px;color:var(--muted);margin-top:14px;margin-bottom:6px"><strong>Auto-load context every session</strong> — add a <code>CLAUDE.md</code> to your project root:</p>
+            <div class="code-block"># MCP Instructions
+At the start of every session, call cortex:get_context() and cortex:get_learnings()
+before responding to anything. This loads your persistent memory.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Cursor / Windsurf</span></div>
+          <div class="card-body">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Settings → MCP → Add server:</p>
+            <div class="code-block" id="cursor-config"></div>
+            <button class="copy-btn" style="margin-top:8px" onclick="copyConfig('cursor-config')">Copy</button>
+          </div>
+        </div>
+
       </div>
 
     </div><!-- /content -->
@@ -452,17 +477,23 @@ async function loadConnect() {
   try {
     const d = await api('/api/status');
     port = d.port;
-    const config = `{
-  "mcpServers": {
-    "cortex": {
-      "url": "http://127.0.0.1:${port}/mcp"
-    }
+    const url = `http://127.0.0.1:${port}/mcp`;
+
+    document.getElementById('mcp-status').innerHTML = `<span style="color:var(--green)">✅ Running on port ${port} · ${url}</span>`;
+    document.getElementById('mcp-status-badge').textContent = '● Connected';
+    document.getElementById('mcp-status-badge').style.color = 'var(--green)';
+
+    document.getElementById('claude-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
+    document.getElementById('claudecode-cmd').textContent = `claude mcp add cortex --transport http ${url}`;
+    document.getElementById('claudecode-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
+    document.getElementById('cursor-config').textContent = JSON.stringify({cortex:{type:"streamable-http",url}},null,2);
+  } catch(e) {
+    document.getElementById('mcp-status').innerHTML = '<span style="color:var(--red)">❌ Server not reachable</span>';
   }
-}`;
-    document.getElementById('claude-config').textContent = config;
-    document.getElementById('mcp-port-2').textContent = port;
-    document.getElementById('mcp-status').innerHTML = `<span style="color:var(--green)">✅ MCP server running on port ${port}</span>`;
-  } catch(e) {}
+}
+
+function copyConfig(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent);
 }
 
 async function loadLearnings() {
@@ -492,9 +523,7 @@ async function saveSoul() {
   } catch(e) { document.getElementById('soul-status').innerHTML = '<span style="color:var(--red)">Failed to save</span>'; }
 }
 
-function copyClaudeConfig() {
-  navigator.clipboard.writeText(document.getElementById('claude-config').textContent);
-}
+function copyClaudeConfig() { copyConfig('claude-config'); }
 
 // Init
 loadContext();
