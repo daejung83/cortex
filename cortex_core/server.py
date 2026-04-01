@@ -17,6 +17,7 @@ import logging
 from pathlib import Path
 from datetime import date
 
+from typing import Optional
 from fastapi import FastAPI, Request, Response, Query
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -210,6 +211,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="tab-content" id="tab-search">
         <div class="search-bar">
           <input type="text" id="search-input" placeholder="Search your brain..." onkeydown="if(event.key==='Enter')doSearch()">
+          <select id="search-days" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;outline:none;">
+            <option value="">All time</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
           <button onclick="doSearch()">Search</button>
         </div>
         <div id="search-results"></div>
@@ -334,9 +341,12 @@ async function loadContext() {
 async function doSearch() {
   const q = document.getElementById('search-input').value.trim();
   if (!q) return;
+  const days = document.getElementById('search-days').value;
+  const params = new URLSearchParams({q});
+  if (days) params.set('days', days);
   document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
   try {
-    const d = await api('/api/search?q=' + encodeURIComponent(q));
+    const d = await api('/api/search?' + params.toString());
     if (!d.results.length) {
       document.getElementById('search-results').innerHTML = '<div class="error">No results found.</div>';
       return;
@@ -453,12 +463,13 @@ async def api_context():
 
 
 @app.get("/api/search")
-async def api_search(q: str = Query(...)):
+async def api_search(q: str = Query(...), days: Optional[int] = Query(None)):
     config = get_config()
     searcher = BrainSearcher(config)
-    results = searcher.search(q, max_results=10)
+    results = searcher.search(q, max_results=10, days=days)
     return {
         "query": q,
+        "days": days,
         "results": [
             {
                 "file": r.file.name,

@@ -48,21 +48,67 @@ TOOLS = [
     {
         "name": "get_context",
         "description": (
-            "Get your current active context and always-on memory. "
-            "Call this at the start of any session to orient the AI on your current projects and focus."
+            "Get current active context and always-on memory. "
+            "ALWAYS call this at the start of every session before anything else."
         ),
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
         "name": "search_brain",
-        "description": "Search across all your brain files (short-term notes, long-term memory, projects, decisions).",
+        "description": (
+            "Search brain files for relevant entries. Use this when the user references "
+            "something specific — a project, decision, or past work. "
+            "Use 'days' to scope the search to recent memory (e.g. days=7 for last week). "
+            "Never dump full context — always search for what's needed."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "What to search for"},
+                "days": {"type": "integer", "description": "Limit search to last N days (e.g. 7, 14). Omit to search all time."},
                 "max_results": {"type": "integer", "default": 8, "description": "Max results to return"},
             },
             "required": ["query"],
+        },
+    },
+    {
+        "name": "log_note",
+        "description": (
+            "Save a note to today's brain file WITH TIMESTAMP. "
+            "IMPORTANT: Call this immediately — do not batch or wait until end of session. "
+            "Save as soon as a decision is made, work is completed, or insight is gained. "
+            "This ensures nothing is lost if the session ends or context is compacted."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "The note to save"},
+                "type": {
+                    "type": "string",
+                    "enum": ["decision", "progress", "insight", "next_steps", "context", "question"],
+                    "description": "Type of entry: decision=choice made, progress=work done, insight=lesson learned, next_steps=what's queued, context=background info, question=open question",
+                },
+                "heading": {"type": "string", "description": "Optional custom heading (overrides type)"},
+            },
+            "required": ["content", "type"],
+        },
+    },
+    {
+        "name": "save_session_summary",
+        "description": (
+            "IMPORTANT: Call this automatically before any context compaction or session reset, "
+            "and when the user says they are done or wrapping up. "
+            "Saves a structured summary so the next session picks up exactly where this one left off."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string", "description": "2-3 sentence summary of what happened this session"},
+                "decisions": {"type": "array", "items": {"type": "string"}, "description": "Specific decisions made (list)"},
+                "progress": {"type": "array", "items": {"type": "string"}, "description": "Work completed (list)"},
+                "next_steps": {"type": "array", "items": {"type": "string"}, "description": "What to pick up next session (list)"},
+            },
+            "required": ["summary"],
         },
     },
     {
@@ -86,18 +132,6 @@ TOOLS = [
             "required": ["topic"],
         },
     },
-    {
-        "name": "log_note",
-        "description": "Save a note, decision, or insight to today's brain file. Use this to capture anything worth remembering.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "content": {"type": "string", "description": "The note to save"},
-                "heading": {"type": "string", "description": "Optional section heading"},
-            },
-            "required": ["content"],
-        },
-    },
 ]
 
 
@@ -107,18 +141,66 @@ def call_tool(name: str, args: dict) -> str:
     if name == "get_context":
         always_on = manager.read_always_on()
         active = manager.read_active_context()
-        return f"## Always-On Context\n\n{always_on}\n\n---\n\n## Active Context\n\n{active}"
+        instructions = """
+---
+## Cortex Memory Instructions
+Save continuously — do not wait until end of session:
+- Decision made → log_note(content, type="decision") immediately
+- Work completed → log_note(content, type="progress") immediately
+- Insight learned → log_note(content, type="insight") immediately
+- Next steps identified → log_note(content, type="next_steps") immediately
+
+Before any compaction or session end → save_session_summary()
+
+When user references past work → search_brain(query, days=7) or search_brain(query, days=14)
+Never dump full context. Always search for what's needed.
+"""
+        return f"## Always-On Context\n\n{always_on}\n\n---\n\n## Active Context\n\n{active}\n\n{instructions}"
 
     elif name == "search_brain":
         query = args.get("query", "")
         max_results = args.get("max_results", 8)
-        results = searcher.search(query, max_results=max_results)
+        days = args.get("days")
+        results = searcher.search(query, max_results=max_results, days=days)
         if not results:
-            return f"No results found for: {query}"
-        lines = [f"**Search: {query}** — {len(results)} results\n"]
+            scope = f"last {days} days" if days else "all time"
+            return f"No results found for '{query}' ({scope})"
+        scope = f"last {days} days" if days else "all time"
+        lines = [f"**Search: '{query}'** ({scope}) — {len(results)} results\n"]
         for r in results:
-            lines.append(f"📄 `{r.file.name}` (line {r.line_no}) — **{r.heading}**\n> {r.snippet}\n")
+            lines.append(f"📄 `{r.file.name}` — **{r.heading}**\n> {r.snippet}\n")
         return "\n".join(lines)
+
+    elif name == "log_note":
+        from datetime import datetime
+        content = args.get("content", "")
+        entry_type = args.get("type", "context")
+        heading = args.get("heading") or f"{datetime.now().strftime('%H:%M')} | {entry_type}"
+        manager.append_to_today(content, heading)
+        return f"✅ Saved [{entry_type}] to {manager.today_file().name}"
+
+    elif name == "save_session_summary":
+        from datetime import datetime
+        summary = args.get("summary", "")
+        decisions = args.get("decisions", [])
+        progress = args.get("progress", [])
+        next_steps = args.get("next_steps", [])
+
+        lines = [summary]
+        if decisions:
+            lines.append("\n**Decisions:**")
+            lines.extend(f"- {d}" for d in decisions)
+        if progress:
+            lines.append("\n**Progress:**")
+            lines.extend(f"- {p}" for p in progress)
+        if next_steps:
+            lines.append("\n**Next steps:**")
+            lines.extend(f"- {n}" for n in next_steps)
+
+        content = "\n".join(lines)
+        heading = f"{datetime.now().strftime('%H:%M')} | session_summary"
+        manager.append_to_today(content, heading)
+        return f"✅ Session summary saved to {manager.today_file().name}"
 
     elif name == "get_projects":
         return manager.read_long_term("projects")
@@ -129,12 +211,6 @@ def call_tool(name: str, args: dict) -> str:
     elif name == "get_long_term":
         topic = args.get("topic", "")
         return manager.read_long_term(topic)
-
-    elif name == "log_note":
-        content = args.get("content", "")
-        heading = args.get("heading")
-        manager.append_to_today(content, heading)
-        return f"✅ Note saved to {manager.today_file().name}"
 
     return f"Unknown tool: {name}"
 

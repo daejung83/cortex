@@ -7,6 +7,7 @@ Semantic mode: uses sentence-transformers for meaning-based search (optional dep
 
 import re
 from pathlib import Path
+from datetime import date, timedelta
 from typing import Optional
 from ..brain.schema import BrainConfig
 
@@ -27,32 +28,54 @@ class BrainSearcher:
     def __init__(self, config: BrainConfig):
         self.config = config
 
-    def _all_brain_files(self) -> list[Path]:
+    def _all_brain_files(self, days: Optional[int] = None) -> list[Path]:
         files = []
-        for d in [self.config.short_term_dir, self.config.long_term_dir]:
-            if d.exists():
-                files.extend(sorted(d.glob("*.md"), reverse=True))
+
+        # Short-term: optionally filter by date range
+        if self.config.short_term_dir.exists():
+            short_files = sorted(self.config.short_term_dir.glob("*.md"), reverse=True)
+            if days is not None:
+                cutoff = date.today() - timedelta(days=days)
+                short_files = [
+                    f for f in short_files
+                    if self._file_date(f) >= cutoff
+                ]
+            files.extend(short_files)
+
+        # Long-term always included (small, curated)
+        if self.config.long_term_dir.exists():
+            files.extend(sorted(self.config.long_term_dir.glob("*.md"), reverse=True))
+
+        # Always-on + active context always included
         for f in [self.config.active_context_file, self.config.always_on_file]:
             if f.exists():
                 files.append(f)
+
         return files
 
-    def search(self, query: str, max_results: int = 10, fast: bool = True) -> list[SearchResult]:
+    def _file_date(self, path: Path) -> date:
+        """Parse date from short-term filename YYYY-MM-DD.md, fallback to today."""
+        try:
+            return date.fromisoformat(path.stem)
+        except ValueError:
+            return date.today()
+
+    def search(self, query: str, max_results: int = 10, fast: bool = True, days: Optional[int] = None) -> list[SearchResult]:
         """
         Search brain files for query.
         fast=True: keyword match (default, no deps)
         fast=False: semantic search (requires sentence-transformers)
         """
         if fast:
-            return self._keyword_search(query, max_results)
+            return self._keyword_search(query, max_results, days=days)
         else:
-            return self._semantic_search(query, max_results)
+            return self._semantic_search(query, max_results, days=days)
 
-    def _keyword_search(self, query: str, max_results: int) -> list[SearchResult]:
+    def _keyword_search(self, query: str, max_results: int, days: Optional[int] = None) -> list[SearchResult]:
         terms = query.lower().split()
         results = []
 
-        for path in self._all_brain_files():
+        for path in self._all_brain_files(days=days):
             try:
                 lines = path.read_text().splitlines()
             except Exception:
@@ -79,7 +102,7 @@ class BrainSearcher:
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]
 
-    def _semantic_search(self, query: str, max_results: int) -> list[SearchResult]:
+    def _semantic_search(self, query: str, max_results: int, days: Optional[int] = None) -> list[SearchResult]:
         try:
             from sentence_transformers import SentenceTransformer, util
             import torch
@@ -93,7 +116,7 @@ class BrainSearcher:
         query_emb = model.encode(query, convert_to_tensor=True)
 
         candidates = []
-        for path in self._all_brain_files():
+        for path in self._all_brain_files(days=days):
             try:
                 lines = path.read_text().splitlines()
             except Exception:
