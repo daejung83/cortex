@@ -190,8 +190,22 @@ def _setup_llm(config, q=None):
             print("\n  No key entered — using heuristic mode.")
 
     else:
-        print("\n  Heuristic mode — fast, free, no setup needed.")
-        print(f"  Enable LLM anytime: edit {secrets_file}")
+        print("\n  Heuristic mode selected — no setup needed, works immediately.")
+        print("""
+  You can enable LLM curation anytime later:
+
+  Option 1 — Edit the secrets file directly:
+""")
+        print(f"    {secrets_file}")
+        print("""
+  Option 2 — Re-run setup:
+
+    cortex init --skip-onboarding  (then change LLM in secrets file)
+
+  Option 3 — From the dashboard:
+
+    cortex start → open http://localhost:7700 → Connect tab → LLM Curation
+""")
 
     print()
 
