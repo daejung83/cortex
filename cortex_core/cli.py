@@ -273,6 +273,26 @@ def cmd_update(args):
         print("  Skipped.\n")
 
 
+def _print_service_status(config_file=None, config_label="Config"):
+    """Check if Cortex is running by hitting the API — works on all platforms."""
+    import urllib.request, json
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:7700/api/status", timeout=2) as r:
+            data = json.loads(r.read())
+            print(f"  Cortex: running ✅")
+            print(f"  Dashboard: http://127.0.0.1:{data.get('port', 7700)}")
+            print(f"  Brain: {data.get('brain_path', '~/.cortex/brain')}")
+            llm = data.get('llm')
+            print(f"  LLM: {llm['provider']} / {llm['model']}" if llm else "  LLM: heuristic mode")
+    except Exception:
+        print("  Cortex: not running ❌")
+        print("  Run: cortex start")
+    if config_file:
+        from pathlib import Path
+        p = Path(str(config_file))
+        print(f"  {config_label}: {p} ({'exists' if p.exists() else 'missing'})")
+
+
 def cmd_service(args):
     import platform
     system = platform.system()
@@ -369,12 +389,7 @@ def _service_macos(args):
             print("  No service found.")
 
     elif args.service_command == "status":
-        result = subprocess.run(["launchctl", "list", "ai.cortex.brain"], capture_output=True, text=True)
-        if "ai.cortex.brain" in result.stdout:
-            print("  Cortex service: running")
-        else:
-            print("  Cortex service: not running")
-        print(f"  Plist: {plist_path} ({'exists' if plist_path.exists() else 'missing'})")
+        _print_service_status(plist_path, "Plist")
 
 
 def _service_linux(args):
@@ -429,8 +444,7 @@ WantedBy=default.target
         print("  Cortex service removed.")
 
     elif args.service_command == "status":
-        result = subprocess.run(["systemctl", "--user", "status", "cortex"], capture_output=True, text=True)
-        print(result.stdout or result.stderr)
+        _print_service_status(service_path, "Service file")
 
 
 def _service_windows(args):
@@ -483,16 +497,27 @@ start /B {cortex_exe} start --port {port}
             print("  No startup files found.")
 
     elif args.service_command == "status":
-        import subprocess
-        result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq python.exe", "/FO", "LIST"],
-            capture_output=True, text=True
-        )
-        if "cortex" in result.stdout.lower() or "cortex_core" in result.stdout.lower():
-            print("  Cortex: running")
-        else:
-            print("  Cortex: not detected in running processes")
-            print("  (Run 'cortex start' or check startup folder)")
+        import subprocess, urllib.request
+        # Check if server is actually responding — most reliable method
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:7700/api/status", timeout=2) as r:
+                import json
+                data = json.loads(r.read())
+                print(f"  Cortex: running")
+                print(f"  Dashboard: http://127.0.0.1:{data.get('port', 7700)}")
+                print(f"  Brain: {data.get('brain_path', '~/.cortex/brain')}")
+                llm = data.get('llm')
+                if llm:
+                    print(f"  LLM: {llm['provider']} / {llm['model']}")
+                else:
+                    print(f"  LLM: heuristic mode")
+        except Exception:
+            print("  Cortex: not running")
+            bat = Path.home() / ".cortex" / "start-cortex.bat"
+            startup = Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "cortex.bat"
+            if startup.exists():
+                print(f"  Auto-start: installed (runs on next login)")
+            print(f"  Run: python -m cortex_core.cli start")
 
 
 def _write_secret(secrets_file, key: str, value: str):
