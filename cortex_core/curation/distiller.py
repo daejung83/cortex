@@ -99,5 +99,10 @@ class Distiller:
                     total_lines += 1
 
         result = "\n".join(lines)
-        self.config.active_context_file.write_text(result)
+
+        # Atomic write — prevents half-written file if AI reads during rebuild
+        import os
+        tmp = self.config.active_context_file.with_suffix(".tmp")
+        tmp.write_text(result)
+        os.replace(tmp, self.config.active_context_file)
         return result

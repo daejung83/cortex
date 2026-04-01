@@ -173,6 +173,33 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {}, "required": []},
     },
     {
+        "name": "get_learnings",
+        "description": "Get everything learned about the user — preferences, patterns, work style. Call this at session start alongside get_context().",
+        "inputSchema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "update_learning",
+        "description": (
+            "Update a learning about the user. Call when you observe a consistent pattern — "
+            "NOT for one-time events (use log_note for those). "
+            "Also call before compact if this session revealed new patterns. "
+            "Learnings overwrite, never grow — file stays small forever."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": ["work_style", "technical", "communication", "decision_patterns", "goals"],
+                    "description": "Category of learning",
+                },
+                "insight": {"type": "string", "description": "The pattern or preference (be specific, e.g. 'prefers Railway over Heroku for Python backends')"},
+                "replaces": {"type": "string", "description": "Existing insight this updates or contradicts (optional)"},
+            },
+            "required": ["category", "insight"],
+        },
+    },
+    {
         "name": "get_long_term",
         "description": "Get any long-term memory file by topic name (e.g. 'people', 'decisions', or any custom topic).",
         "inputSchema": {
@@ -190,31 +217,15 @@ def call_tool(name: str, args: dict) -> str:
     manager, searcher = get_brain()
 
     if name == "get_context":
+        from ..brain.soul import read_soul
+        soul = read_soul(manager.config)
         always_on = manager.read_always_on()
         active = manager.read_active_context()
-        instructions = """
----
-## Cortex Memory Instructions
-
-**Save continuously — do not wait until end of session:**
-- Decision made → log_note(content, type="decision") immediately
-- Work completed → log_note(content, type="progress") immediately
-- Insight learned → log_note(content, type="insight") immediately
-- Next steps identified → log_note(content, type="next_steps") immediately
-- Major decision → log_decision(decision, rationale, project) for long-term memory
-
-**Before any compaction or session end — do all of these:**
-1. save_session_summary() — distilled summary of what happened
-2. update_project(name, status, focus, next_steps) — for EVERY project touched this session
-   This keeps project state current so next session picks up exactly where this left off.
-
-**When user references past work:**
-- search_brain(query, days=7) for last week
-- search_brain(query, days=14) for last two weeks
-- search_brain(query) for all time
-- Never dump full context — always search for what's needed
-"""
-        return f"## Always-On Context\n\n{always_on}\n\n---\n\n## Active Context\n\n{active}\n\n{instructions}"
+        return (
+            f"{soul}\n\n"
+            f"---\n\n## Always-On Context\n\n{always_on}\n\n"
+            f"---\n\n## Active Context\n\n{active}"
+        )
 
     elif name == "search_brain":
         query = args.get("query", "")
@@ -232,8 +243,16 @@ def call_tool(name: str, args: dict) -> str:
 
     elif name == "log_note":
         from datetime import datetime
+        import re as _re
         content = args.get("content", "")
         entry_type = args.get("type", "context")
+
+        # Privacy check — warn if content looks like secrets
+        secret_patterns = [r"sk-[a-zA-Z0-9]{20,}", r"ghp_[a-zA-Z0-9]{20,}", r"ltk_[a-zA-Z0-9]{20,}", r"Bearer [a-zA-Z0-9]{20,}"]
+        for pat in secret_patterns:
+            if _re.search(pat, content):
+                return "⚠️ Note not saved — content appears to contain a secret/API key. Remove sensitive data before logging."
+
         heading = args.get("heading") or f"{datetime.now().strftime('%H:%M')} | {entry_type}"
         manager.append_to_today(content, heading)
         return f"✅ Saved [{entry_type}] to {manager.today_file().name}"
@@ -286,6 +305,16 @@ def call_tool(name: str, args: dict) -> str:
             project=args.get("project"),
         )
         return f"✅ Decision saved to decisions.md"
+
+    elif name == "get_learnings":
+        return manager.get_learnings_with_stale_check()
+
+    elif name == "update_learning":
+        return manager.update_learning(
+            category=args["category"],
+            insight=args["insight"],
+            replaces=args.get("replaces"),
+        )
 
     elif name == "get_decisions":
         return manager.read_long_term("decisions")

@@ -23,6 +23,10 @@ class BrainManager:
         self.config.long_term_dir.mkdir(parents=True, exist_ok=True)
         self.projects_dir.mkdir(parents=True, exist_ok=True)
 
+        # Seed SOUL.md if missing
+        from .soul import init_soul
+        init_soul(self.config)
+
         # Seed always-on.md if missing
         if not self.config.always_on_file.exists():
             self.config.always_on_file.write_text(
@@ -109,34 +113,55 @@ class BrainManager:
         url: Optional[str] = None,
     ) -> str:
         """
-        Create or overwrite a project file with current state.
+        Create or update a project file — MERGES with existing data.
+        Only updates fields explicitly passed. Preserves everything else.
         Max ~15 lines — current state only, not history.
-        History lives in short-term files.
         """
         self.projects_dir.mkdir(parents=True, exist_ok=True)
         today = date.today().isoformat()
+        path = self._project_file(name)
+
+        # Load existing fields if file exists
+        existing = {}
+        if path.exists():
+            for line in path.read_text().splitlines():
+                for field in ["Status", "URL", "Stack", "Current focus", "Notes"]:
+                    if f"**{field}:**" in line:
+                        existing[field.lower().replace(" ", "_")] = line.split(f"**{field}:**")[-1].strip()
+
+        # Merge — only override if explicitly passed
+        merged = {
+            "status": status,
+            "url": url or existing.get("url"),
+            "stack": stack or existing.get("stack"),
+            "focus": focus or existing.get("current_focus"),
+            "notes": notes or existing.get("notes"),
+        }
 
         lines = [f"# {name}\n"]
-        lines.append(f"- **Status:** {status}")
-        if url:
-            lines.append(f"- **URL:** {url}")
-        if stack:
-            lines.append(f"- **Stack:** {stack}")
-        if focus:
-            lines.append(f"- **Current focus:** {focus}")
+        lines.append(f"- **Status:** {merged['status']}")
+        if merged["url"]:
+            lines.append(f"- **URL:** {merged['url']}")
+        if merged["stack"]:
+            lines.append(f"- **Stack:** {merged['stack']}")
+        if merged["focus"]:
+            lines.append(f"- **Current focus:** {merged['focus']}")
         if next_steps:
-            lines.append(f"- **Next steps:**")
+            lines.append("- **Next steps:**")
             for s in next_steps:
                 lines.append(f"  - {s}")
-        if notes:
-            lines.append(f"- **Notes:** {notes}")
+        if merged["notes"]:
+            lines.append(f"- **Notes:** {merged['notes']}")
         lines.append(f"- **Last updated:** {today}")
 
         content = "\n".join(lines) + "\n"
-        path = self._project_file(name)
-        path.write_text(content)
 
-        # Rebuild index
+        # Atomic write — prevents race condition with concurrent sessions
+        import tempfile, os
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(content)
+        os.replace(tmp, path)
+
         self._rebuild_project_index()
         return str(path)
 
@@ -180,6 +205,107 @@ class BrainManager:
         index_content = f"# Projects\n_Updated: {today}_\n\n" + "\n".join(projects) + "\n"
         self._index_file().write_text(index_content)
         return index_content
+
+    # ── Learnings methods ────────────────────────────────────────────
+
+    LEARNING_CATEGORIES = ["work_style", "technical", "communication", "decision_patterns", "goals"]
+    MAX_LEARNINGS_LINES = 35
+    STALE_LEARNING_DAYS = 90
+
+    @property
+    def _learnings_file(self) -> Path:
+        return self.config.long_term_dir / "learnings.md"
+
+    def read_learnings(self) -> str:
+        if not self._learnings_file.exists():
+            return "_No learnings yet. AI will update this as patterns are observed._"
+        return self._learnings_file.read_text()
+
+    def update_learning(self, category: str, insight: str, replaces: Optional[str] = None) -> str:
+        """
+        Add or update a learning about the user.
+        Merges into existing category section.
+        Enforces max line limit — AI must consolidate if too big.
+        """
+        today = date.today().isoformat()
+        existing = self._learnings_file.read_text() if self._learnings_file.exists() else ""
+
+        # Parse existing into sections
+        sections: dict[str, list[str]] = {}
+        current_section = None
+        header_line = None
+
+        for line in existing.splitlines():
+            if line.startswith("# "):
+                header_line = line
+            elif line.startswith("## "):
+                current_section = line[3:].strip().lower().replace(" ", "_")
+                sections[current_section] = []
+            elif current_section and line.strip().startswith("- "):
+                sections[current_section].append(line.strip())
+
+        # Remove replaced insight
+        if replaces and category in sections:
+            sections[category] = [
+                l for l in sections[category]
+                if replaces.lower() not in l.lower()
+            ]
+
+        # Add new insight with date tag
+        if category not in sections:
+            sections[category] = []
+        tagged = f"- {insight} _(confirmed {today})_"
+        # Don't duplicate
+        if not any(insight.lower() in l.lower() for l in sections[category]):
+            sections[category].append(tagged)
+
+        # Rebuild file
+        lines = ["# Learnings", f"_Last updated: {today}_", ""]
+        category_titles = {
+            "work_style": "Work Style",
+            "technical": "Technical Preferences",
+            "communication": "Communication",
+            "decision_patterns": "Decision Patterns",
+            "goals": "Goals",
+        }
+        for cat in self.LEARNING_CATEGORIES:
+            if cat in sections and sections[cat]:
+                lines.append(f"## {category_titles.get(cat, cat)}")
+                lines.extend(sections[cat])
+                lines.append("")
+
+        content = "\n".join(lines)
+
+        # Enforce max lines
+        actual_lines = [l for l in content.splitlines() if l.strip()]
+        if len(actual_lines) > self.MAX_LEARNINGS_LINES:
+            content += f"\n\n⚠️ CONSOLIDATION NEEDED: {len(actual_lines)} lines (max {self.MAX_LEARNINGS_LINES}). Call update_learning with replaces= to consolidate."
+
+        # Atomic write
+        import tempfile, os
+        tmp = self._learnings_file.with_suffix(".tmp")
+        tmp.write_text(content)
+        os.replace(tmp, self._learnings_file)
+        return f"✅ Learning updated in category: {category}"
+
+    def get_learnings_with_stale_check(self) -> str:
+        """Read learnings, flagging entries older than STALE_LEARNING_DAYS."""
+        content = self.read_learnings()
+        if "_No learnings yet" in content:
+            return content
+
+        today = date.today()
+        lines_out = []
+        for line in content.splitlines():
+            # Check for date tags like _(confirmed 2026-01-01)_
+            match = re.search(r"_\(confirmed (\d{4}-\d{2}-\d{2})\)_", line)
+            if match:
+                confirmed = date.fromisoformat(match.group(1))
+                age = (today - confirmed).days
+                if age > self.STALE_LEARNING_DAYS:
+                    line = f"⚠️ [STALE — {age}d ago, confirm still true] {line}"
+            lines_out.append(line)
+        return "\n".join(lines_out)
 
     def log_decision(self, decision: str, rationale: Optional[str] = None, project: Optional[str] = None) -> str:
         """Append a decision to long-term/decisions.md."""
