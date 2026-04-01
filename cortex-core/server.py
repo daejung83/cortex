@@ -309,7 +309,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           <div class="card-header"><span class="card-title">Claude Desktop</span></div>
           <div class="card-body">
             <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
-              Add to <code>%APPDATA%\Claude\claude_desktop_config.json</code> (Windows) or<br>
+              Add to <code>%APPDATA%/Claude/claude_desktop_config.json</code> (Windows) or<br>
               <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (Mac)
             </p>
             <div class="code-block" id="claude-config"></div>
