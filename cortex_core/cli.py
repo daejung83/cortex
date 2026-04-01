@@ -84,22 +84,11 @@ def _run_onboarding(config, manager, flag_file, q):
 
     flag_file.write_text("initialized", encoding="utf-8")
 
-    # Seed first project
-    if focus:
-        label = focus[:50] + "..." if len(focus) > 50 else focus
-        if q:
-            proj_name = q.text(f"Project name for '{label}' (Enter to skip):").ask() or ""
-        else:
-            proj_name = input(f"\nProject name for '{label}' (Enter to skip): ").strip()
-
-        if proj_name:
-            manager.update_project(
-                name=proj_name,
-                status="In progress",
-                focus=focus,
-                stack=stack or None,
-            )
-            print(f"  Project '{proj_name}' created")
+    # Seed a welcome note so first get_context() has something useful
+    from datetime import datetime
+    welcome = f"Cortex initialized. User: {name or 'unknown'}. Focus: {focus or 'not set'}. Stack: {stack or 'not set'}."
+    manager.append_to_today(welcome, heading=f"{datetime.now().strftime('%H:%M')} | context")
+    print("  Brain seeded with your setup")
 
     # LLM setup
     _setup_llm(config, q)
@@ -120,20 +109,26 @@ def _setup_llm(config, q=None):
 
     print("""
   ─────────────────────────────────────────
-  AI Curation (optional)
+  AI Curation (optional but recommended)
   ─────────────────────────────────────────
-  Cortex works great without an LLM — free heuristic
-  mode rebuilds your context automatically.
+  Without LLM: Cortex uses heuristic mode — free,
+  instant, no setup. Good enough for most users.
 
-  With an LLM, Cortex writes smarter summaries that
-  actually understand what mattered in each session.
+  With LLM: Cortex reads your session notes and
+  writes intelligent summaries — understanding what
+  actually mattered, not just copying recent lines.
+  Active context is sharper, more useful, less noise.
+
+  Estimated cost: ~$0.001/day with OpenAI or Anthropic.
+  Ollama is 100% free and runs locally.
   ─────────────────────────────────────────
 """)
 
     choices = [
-        "Ollama (local, free — best for Claude subscribers)",
-        "OpenAI gpt-5.4-nano (~pennies/month)",
-        "Skip — use heuristic mode (free, always works)",
+        "Ollama — local, free, no API key (best for Claude subscribers)",
+        "OpenAI — gpt-5.4-nano, ~$0.001/day",
+        "Anthropic — claude-haiku, ~$0.001/day (separate API account needed)",
+        "Skip — heuristic mode, free, always works",
     ]
 
     if q:
@@ -143,13 +138,13 @@ def _setup_llm(config, q=None):
             use_arrow_keys=True,
         ).ask()
         if choice is None:
-            choice = choices[2]
+            choice = choices[3]
     else:
-        print("  1) " + choices[0])
-        print("  2) " + choices[1])
-        print("  3) " + choices[2])
-        raw = input("\n  Choose [1/2/3] (default: 3): ").strip() or "3"
-        choice = choices[int(raw) - 1] if raw in ("1", "2", "3") else choices[2]
+        for i, c in enumerate(choices, 1):
+            print(f"  {i}) {c}")
+        raw = input("\n  Choose [1-4] (default: 4): ").strip() or "4"
+        idx = int(raw) - 1 if raw in ("1","2","3","4") else 3
+        choice = choices[idx]
 
     if "Ollama" in choice:
         if q:
@@ -175,8 +170,25 @@ def _setup_llm(config, q=None):
             print(f"  Key saved to {secrets_file}")
         else:
             print("\n  No key entered — using heuristic mode.")
+
+    elif "Anthropic" in choice:
+        print("\n  Note: Claude Code/Desktop subscription != API key.")
+        print("  You need a separate account at console.anthropic.com\n")
+        if q:
+            api_key = q.password("Anthropic API key (sk-ant-...):").ask() or ""
+        else:
+            api_key = input("  Anthropic API key (sk-ant-...): ").strip()
+        if api_key:
+            _write_secret(secrets_file, "CORTEX_LLM_PROVIDER", "anthropic")
+            _write_secret(secrets_file, "CORTEX_LLM_API_KEY", api_key)
+            _write_secret(secrets_file, "CORTEX_LLM_MODEL", "claude-haiku-4-5")
+            print(f"\n  Anthropic configured (claude-haiku-4-5)")
+            print(f"  Key saved to {secrets_file}")
+        else:
+            print("\n  No key entered — using heuristic mode.")
+
     else:
-        print("\n  Heuristic mode selected — fast, free, no setup.")
+        print("\n  Heuristic mode — fast, free, no setup needed.")
         print(f"  Enable LLM anytime: edit {secrets_file}")
 
     print()
