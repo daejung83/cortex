@@ -37,6 +37,7 @@ def _q():
 
 
 def cmd_init(args):
+    import platform
     config = get_config()
     manager = BrainManager(config)
     manager.init()
@@ -47,7 +48,26 @@ def cmd_init(args):
         _run_onboarding(config, manager, flag_file, q)
 
     print(f"\n  Brain ready at {config.root}")
-    print(f"  Run: cortex start")
+
+    if platform.system() == "Windows":
+        # Check if cortex is on PATH
+        import shutil
+        if not shutil.which("cortex"):
+            print("""
+  ⚠️  'cortex' is not on your PATH yet.
+  Fix it permanently by running this in PowerShell:
+
+    $p = python -m site --user-scripts
+    [Environment]::SetEnvironmentVariable("PATH","$env:PATH;$p","User")
+
+  Then restart PowerShell and use 'cortex start' directly.
+  Until then, use: python -m cortex_core.cli start
+""")
+        else:
+            print(f"  Run: cortex start")
+    else:
+        print(f"  Run: cortex start")
+
     print(f"  Dashboard: http://localhost:7700\n")
 
 

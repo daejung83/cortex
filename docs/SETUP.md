@@ -23,7 +23,13 @@ pip install cortex-brain
 python -m cortex_core.cli
 ```
 
-> **Windows PATH tip:** The installer will warn `cortex.exe is installed in ... which is not on PATH`. You can either add that Scripts folder to your PATH, or just use `python -m cortex_core.cli` as a drop-in replacement for every `cortex` command in this guide.
+> **Windows PATH tip:** The installer warns `cortex.exe is installed in ... which is not on PATH`.
+> Fix it permanently — run this once in PowerShell then restart:
+> ```powershell
+> $p = python -m site --user-scripts
+> [Environment]::SetEnvironmentVariable("PATH","$env:PATH;$p","User")
+> ```
+> Or use `python -m cortex_core.cli` as a drop-in for every `cortex` command in this guide.
 
 ---
 
