@@ -27,105 +27,159 @@ def get_config() -> BrainConfig:
     return BrainConfig.from_root(brain_path)
 
 
+def _q():
+    """Import questionary, fallback to plain input if unavailable."""
+    try:
+        import questionary
+        return questionary
+    except ImportError:
+        return None
+
+
 def cmd_init(args):
     config = get_config()
     manager = BrainManager(config)
     manager.init()
 
-    # Onboarding — only on first init (flag file not present)
     flag_file = config.root / ".initialized"
     if not flag_file.exists() and not args.skip_onboarding:
-        print("\n🧠 Let's set up your brain. (Press Enter to skip any question)\n")
+        q = _q()
+        _run_onboarding(config, manager, flag_file, q)
 
-        name = input("Your name: ").strip()
-        role = input("Your role / what you do: ").strip()
-        focus = input("What are you currently working on? ").strip()
-        stack = input("Your main tech stack: ").strip()
+    print(f"\n  Brain ready at {config.root}")
+    print(f"  Run: cortex start")
+    print(f"  Dashboard: http://localhost:7700\n")
+
+
+def _run_onboarding(config, manager, flag_file, q):
+    """Interactive onboarding — uses questionary if available, falls back to input()."""
+
+    _print_banner()
+
+    if q:
+        name     = q.text("Your name:").ask() or ""
+        role     = q.text("Your role / what you do:").ask() or ""
+        focus    = q.text("What are you currently working on? (Enter to skip)").ask() or ""
+        stack    = q.text("Your main tech stack: (e.g. Python, Next.js)").ask() or ""
+        timezone = q.text("Your timezone:").ask() or ""
+    else:
+        print("(Press Enter to skip any question)\n")
+        name     = input("Your name: ").strip()
+        role     = input("Your role / what you do: ").strip()
+        focus    = input("What are you currently working on? ").strip()
+        stack    = input("Your main tech stack: ").strip()
         timezone = input("Your timezone (e.g. America/Chicago): ").strip()
 
-        lines = ["# Always-On Context\n"]
-        if name:
-            lines.append(f"## About Me\n- Name: {name}")
-        if role:
-            lines.append(f"- Role: {role}")
-        if timezone:
-            lines.append(f"- Timezone: {timezone}")
-        if focus:
-            lines.append(f"\n## Current Focus\n- {focus}")
-        if stack:
-            lines.append(f"\n## My Stack\n- {stack}")
+    # Write always-on.md
+    lines = ["# Always-On Context\n"]
+    if name:     lines.append(f"## About Me\n- Name: {name}")
+    if role:     lines.append(f"- Role: {role}")
+    if timezone: lines.append(f"- Timezone: {timezone}")
+    if focus:    lines.append(f"\n## Current Focus\n- {focus}")
+    if stack:    lines.append(f"\n## My Stack\n- {stack}")
 
-        if any([name, role, focus, stack]):
-            config.always_on_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            print("\n✅ always-on.md created")
+    if any([name, role, focus, stack]):
+        config.always_on_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print("\n  always-on.md saved")
 
-        # Mark as initialized so onboarding doesn't repeat
-        flag_file.write_text("initialized", encoding="utf-8")
+    flag_file.write_text("initialized", encoding="utf-8")
 
-        # Seed first project if given
-        if focus:
-            proj_name = input(f"\nProject name for '{focus[:40]}...' (or Enter to skip): ").strip() if len(focus) > 40 else input(f"\nProject name for '{focus}' (or Enter to skip): ").strip()
-            if proj_name:
-                manager.update_project(
-                    name=proj_name,
-                    status="In progress",
-                    focus=focus,
-                    stack=stack or None,
-                )
-                print(f"✅ Project '{proj_name}' created")
+    # Seed first project
+    if focus:
+        label = focus[:50] + "..." if len(focus) > 50 else focus
+        if q:
+            proj_name = q.text(f"Project name for '{label}' (Enter to skip):").ask() or ""
+        else:
+            proj_name = input(f"\nProject name for '{label}' (Enter to skip): ").strip()
 
-        # LLM setup
-        _setup_llm(config)
+        if proj_name:
+            manager.update_project(
+                name=proj_name,
+                status="In progress",
+                focus=focus,
+                stack=stack or None,
+            )
+            print(f"  Project '{proj_name}' created")
 
-    print(f"\n🧠 Brain ready at {config.root}")
-    print(f"   Run: cortex start")
-    print(f"   Dashboard: http://localhost:7700\n")
+    # LLM setup
+    _setup_llm(config, q)
 
 
-def _setup_llm(config):
-    """Interactive LLM setup during init."""
-    secrets_file = config.root.parent / ".env"
-
-    print("\n" + "-" * 50)
-    print("LLM Curation (optional)")
-    print("-" * 50)
+def _print_banner():
     print("""
-Cortex works great in heuristic mode - free, no API key.
-
-With an LLM, it produces smarter summaries by actually
-understanding what mattered in each session.
-
-  1) Ollama  - local, free, no API key needed
-               (recommended for Claude Code/Desktop subscribers)
-  2) OpenAI  - gpt-5.4-nano, ~pennies/month
-  3) Skip    - use heuristic mode (free, always works)
+  ╔═══════════════════════════════════════╗
+  ║   🧠  Cortex — Brain Setup            ║
+  ║   Persistent memory for your AI       ║
+  ╚═══════════════════════════════════════╝
 """)
 
-    choice = input("Choose [1/2/3] (default: 3): ").strip() or "3"
 
-    if choice == "1":
-        model = input("Ollama model (default: llama3.2): ").strip() or "llama3.2"
+def _setup_llm(config, q=None):
+    """Interactive LLM setup — arrow key selection if questionary available."""
+    secrets_file = config.root.parent / ".env"
+
+    print("""
+  ─────────────────────────────────────────
+  AI Curation (optional)
+  ─────────────────────────────────────────
+  Cortex works great without an LLM — free heuristic
+  mode rebuilds your context automatically.
+
+  With an LLM, Cortex writes smarter summaries that
+  actually understand what mattered in each session.
+  ─────────────────────────────────────────
+""")
+
+    choices = [
+        "Ollama (local, free — best for Claude subscribers)",
+        "OpenAI gpt-5.4-nano (~pennies/month)",
+        "Skip — use heuristic mode (free, always works)",
+    ]
+
+    if q:
+        choice = q.select(
+            "Choose your curation mode:",
+            choices=choices,
+            use_arrow_keys=True,
+        ).ask()
+        if choice is None:
+            choice = choices[2]
+    else:
+        print("  1) " + choices[0])
+        print("  2) " + choices[1])
+        print("  3) " + choices[2])
+        raw = input("\n  Choose [1/2/3] (default: 3): ").strip() or "3"
+        choice = choices[int(raw) - 1] if raw in ("1", "2", "3") else choices[2]
+
+    if "Ollama" in choice:
+        if q:
+            model = q.text("Ollama model:", default="llama3.2").ask() or "llama3.2"
+        else:
+            model = input("  Ollama model (default: llama3.2): ").strip() or "llama3.2"
         _write_secret(secrets_file, "CORTEX_LLM_PROVIDER", "ollama")
         _write_secret(secrets_file, "CORTEX_LLM_MODEL", model)
         print(f"\n  Ollama configured ({model})")
-        print(f"  Make sure Ollama is running: https://ollama.ai")
-        print(f"  Pull the model: ollama pull {model}")
+        print(f"  Install: https://ollama.ai")
+        print(f"  Then run: ollama pull {model}")
 
-    elif choice == "2":
-        api_key = input("OpenAI API key (sk-...): ").strip()
+    elif "OpenAI" in choice:
+        if q:
+            api_key = q.password("OpenAI API key (sk-...):").ask() or ""
+        else:
+            api_key = input("  OpenAI API key (sk-...): ").strip()
         if api_key:
             _write_secret(secrets_file, "CORTEX_LLM_PROVIDER", "openai")
             _write_secret(secrets_file, "CORTEX_LLM_API_KEY", api_key)
             _write_secret(secrets_file, "CORTEX_LLM_MODEL", "gpt-5.4-nano")
-            print(f"\n  OpenAI gpt-5.4-nano configured")
+            print(f"\n  OpenAI configured (gpt-5.4-nano)")
             print(f"  Key saved to {secrets_file}")
         else:
-            print("\n  No key entered - using heuristic mode.")
+            print("\n  No key entered — using heuristic mode.")
     else:
-        print("\n  Heuristic mode - fast, free, no setup needed.")
+        print("\n  Heuristic mode selected — fast, free, no setup.")
         print(f"  Enable LLM anytime: edit {secrets_file}")
 
-    print("-" * 50)
+    print()
 
 
 def _write_secret(secrets_file, key: str, value: str):
