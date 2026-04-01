@@ -845,6 +845,18 @@ def serve(port: int = 7700, host: str = "127.0.0.1", no_agent: bool = False):
     _load_secrets()
     os.environ["CORTEX_PORT"] = str(port)
 
+    # Show LLM status so user knows what mode is active
+    provider = os.environ.get("CORTEX_LLM_PROVIDER", "")
+    model = os.environ.get("CORTEX_LLM_MODEL", "")
+    if provider:
+        defaults = {"anthropic": "claude-haiku-4-5", "openai": "gpt-5.4-nano", "ollama": "llama3.2"}
+        active_model = model or defaults.get(provider, "default")
+        print(f"  LLM curation: {provider} / {active_model}")
+    else:
+        print(f"  LLM curation: heuristic mode (set CORTEX_LLM_PROVIDER in ~/.cortex/.env to enable)")
+
+    print(f"  To apply .env changes: stop Cortex (Ctrl+C) then run cortex start again\n")
+
     async def run_with_agent():
         config = get_config()
         agent = CurationAgent(config)
