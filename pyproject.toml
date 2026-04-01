@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cortex-brain"
+version = "0.1.0"
+description = "Persistent memory for AI — across every tool, every session"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Derek Kim", email = "daejung1@gmail.com" }]
+keywords = ["ai", "memory", "mcp", "claude", "cursor", "llm", "agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=3.0", "torch>=2.0"]
+dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.4"]
+
+[project.scripts]
+cortex = "cortex_core.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/daejung83/cortex"
+Repository = "https://github.com/daejung83/cortex"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
