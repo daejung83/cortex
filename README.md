@@ -24,8 +24,15 @@ Every AI session starts from zero. You explain your stack, your project names, y
 
 ```bash
 pip install cortex-brain
-cortex init        # interactive setup — name, projects, stack
-cortex start       # dashboard + MCP server at http://localhost:7700
+cortex init              # interactive setup — name, projects, stack
+cortex start             # dashboard + MCP server at http://localhost:7700
+
+# Connect to all AI tools globally (one-time):
+cortex init-global       # writes ~/.claude/CLAUDE.md, ~/.cursor/rules/cortex.md
+
+# Or connect to a specific project:
+cd my-project
+cortex init-project      # writes CLAUDE.md, AGENTS.md, .cursorrules, .windsurfrules
 ```
 
 ---

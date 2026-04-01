@@ -89,6 +89,133 @@ def cmd_start(args):
     serve(port=args.port, host=args.host, no_agent=args.no_agent)
 
 
+MEMORY_INSTRUCTIONS = """# Memory Instructions (Cortex)
+At the start of every session, call cortex:get_context() and cortex:get_learnings()
+before responding to anything. This loads persistent memory and user profile.
+
+During the session:
+- Call cortex:log_note(content, type="decision") immediately when any decision is made
+- Call cortex:log_note(content, type="progress") when work is completed
+- Call cortex:log_note(content, type="insight") when something important is learned
+
+Before any compaction or session end:
+- Call cortex:save_session_summary() with a distilled summary
+- Call cortex:update_project() for every project touched this session
+
+When user references past work:
+- Call cortex:search_brain(query, days=7) for last week
+- Call cortex:search_brain(query) for all time
+- Never guess — always search first
+"""
+
+MCP_JSON = lambda port: f"""\
+{{
+  "mcpServers": {{
+    "cortex": {{
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:{port}/mcp"
+    }}
+  }}
+}}
+"""
+
+
+def cmd_init_project(args):
+    """Set up Cortex in the current project directory."""
+    import json
+    from pathlib import Path
+
+    port = args.port
+    cwd = Path.cwd()
+    created = []
+
+    # .mcp.json — Claude Code project-scoped
+    mcp_file = cwd / ".mcp.json"
+    if not mcp_file.exists() or args.force:
+        mcp_file.write_text(MCP_JSON(port), encoding="utf-8")
+        created.append(".mcp.json (Claude Code — project-scoped MCP)")
+
+    # CLAUDE.md — Claude Code instructions
+    claude_md = cwd / "CLAUDE.md"
+    if not claude_md.exists() or args.force:
+        claude_md.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append("CLAUDE.md (Claude Code auto-load instructions)")
+
+    # AGENTS.md — cross-tool standard (Cursor, Codex, Gemini, etc.)
+    agents_md = cwd / "AGENTS.md"
+    if not agents_md.exists() or args.force:
+        agents_md.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append("AGENTS.md (cross-tool: Cursor, Codex, Gemini, Copilot)")
+
+    # .cursorrules — Cursor legacy format
+    cursorrules = cwd / ".cursorrules"
+    if not cursorrules.exists() or args.force:
+        cursorrules.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append(".cursorrules (Cursor)")
+
+    # .windsurfrules — Windsurf
+    windsurfrules = cwd / ".windsurfrules"
+    if not windsurfrules.exists() or args.force:
+        windsurfrules.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append(".windsurfrules (Windsurf)")
+
+    print(f"\n🧠 Cortex connected to: {cwd.name}/\n")
+    for f in created:
+        print(f"  ✅ {f}")
+
+    if not created:
+        print("  ℹ️  All files already exist. Use --force to overwrite.")
+
+    print(f"\n  Restart Claude Code / Cursor / Windsurf to activate.\n")
+
+
+def cmd_init_global(args):
+    """Set up Cortex globally — works in every project without per-project setup."""
+    import json
+    from pathlib import Path
+
+    port = args.port
+    created = []
+
+    # Claude Code global: ~/.claude/.mcp.json
+    claude_dir = Path.home() / ".claude"
+    claude_dir.mkdir(exist_ok=True)
+
+    mcp_file = claude_dir / ".mcp.json"
+    if not mcp_file.exists() or args.force:
+        mcp_file.write_text(MCP_JSON(port), encoding="utf-8")
+        created.append(f"{mcp_file} (Claude Code — global MCP)")
+
+    # Claude Code global instructions: ~/.claude/CLAUDE.md
+    claude_md = claude_dir / "CLAUDE.md"
+    if not claude_md.exists() or args.force:
+        claude_md.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append(f"{claude_md} (Claude Code — global instructions)")
+
+    # Cursor global rules: ~/.cursor/rules/cortex.md
+    cursor_rules_dir = Path.home() / ".cursor" / "rules"
+    cursor_rules_dir.mkdir(parents=True, exist_ok=True)
+    cursor_rule = cursor_rules_dir / "cortex.md"
+    if not cursor_rule.exists() or args.force:
+        cursor_rule.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
+        created.append(f"{cursor_rule} (Cursor — global rules)")
+
+    print(f"\n🧠 Cortex configured globally\n")
+    for f in created:
+        print(f"  ✅ {f}")
+
+    if not created:
+        print("  ℹ️  All files already exist. Use --force to overwrite.")
+
+    print("""
+  Next steps:
+  • Restart Claude Code and Cursor to activate
+  • Windsurf: set global rules manually in Settings → AI → Global Rules
+    (paste the memory instructions from the Connect tab in the dashboard)
+  • Run 'cortex start' to keep the MCP server running
+""")
+
+
 def cmd_search(args):
     config = get_config()
     searcher = BrainSearcher(config)
@@ -162,6 +289,14 @@ def main():
     start_p.add_argument("--host", default="127.0.0.1")
     start_p.add_argument("--no-agent", action="store_true", help="Disable background curation agent")
 
+    ip = sub.add_parser("init-project", help="Connect Cortex to current project (creates CLAUDE.md, .cursorrules, etc.)")
+    ip.add_argument("--port", type=int, default=7700)
+    ip.add_argument("--force", action="store_true", help="Overwrite existing files")
+
+    ig = sub.add_parser("init-global", help="Connect Cortex globally — works in every project")
+    ig.add_argument("--port", type=int, default=7700)
+    ig.add_argument("--force", action="store_true", help="Overwrite existing files")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -177,6 +312,10 @@ def main():
         cmd_serve(args)
     elif args.command == "start":
         cmd_start(args)
+    elif args.command == "init-project":
+        cmd_init_project(args)
+    elif args.command == "init-global":
+        cmd_init_global(args)
     elif args.command in dispatch:
         dispatch[args.command](args)
     else:

@@ -344,6 +344,22 @@ CORTEX_LLM_API_KEY=sk-ant-...</div>
         </div>
 
         <div class="card">
+          <div class="card-header"><span class="card-title">Quick Setup Commands</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Global <span style="font-size:11px;color:var(--green);font-weight:400">(one-time — works in every project)</span></p>
+            <div class="code-block" id="cmd-global"></div>
+            <button class="copy-btn" style="margin-top:6px" onclick="copyConfig('cmd-global')">Copy</button>
+
+            <div style="border-top:1px solid var(--border);margin:14px 0"></div>
+
+            <p style="font-size:13px;font-weight:600;margin-bottom:6px">Per-project <span style="font-size:11px;color:var(--muted);font-weight:400">(run in each project folder)</span></p>
+            <div class="code-block" id="cmd-project"></div>
+            <button class="copy-btn" style="margin-top:6px" onclick="copyConfig('cmd-project')">Copy</button>
+            <p style="font-size:11px;color:var(--muted);margin-top:8px">Creates CLAUDE.md, AGENTS.md, .cursorrules, .windsurfrules, and .mcp.json in the current directory.</p>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-header"><span class="card-title">Claude Code (CLI)</span></div>
           <div class="card-body">
 
@@ -539,6 +555,8 @@ async function loadConnect() {
       document.getElementById('llm-status').innerHTML = `<span style="color:var(--yellow)">⚡ Heuristic mode — works great for most users. Want smarter curation? Set CORTEX_LLM_PROVIDER=ollama (free, local) or use an OpenAI/Anthropic API key.</span>`;
     }
 
+    document.getElementById('cmd-global').textContent = `python -m cortex_core.cli init-global --port ${port}`;
+    document.getElementById('cmd-project').textContent = `python -m cortex_core.cli init-project --port ${port}`;
     document.getElementById('claude-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
     document.getElementById('claudecode-cmd').textContent = `claude mcp add cortex --transport http ${url}`;
     document.getElementById('claudecode-config').textContent = JSON.stringify({mcpServers:{cortex:{type:"streamable-http",url}}},null,2);
