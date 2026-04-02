@@ -621,7 +621,15 @@ def cmd_init_global(args):
     created = []
 
     # Claude Code global: ~/.claude/.mcp.json
-    claude_dir = Path.home() / ".claude"
+    # On Windows, Claude Code reads from %APPDATA%\.. but actually uses the Windows user home.
+    # On WSL, Path.home() gives the Linux home — we need the Windows user home instead.
+    import os, platform
+    if platform.system() == "Linux" and "microsoft" in platform.uname().release.lower():
+        # Running in WSL — write to Windows user home so Claude Code (Windows app) picks it up
+        win_home = os.environ.get("USERPROFILE") or os.environ.get("HOMEDRIVE", "C:") + os.environ.get("HOMEPATH", "\\Users\\User")
+        claude_dir = Path(win_home) / ".claude"
+    else:
+        claude_dir = Path.home() / ".claude"
     claude_dir.mkdir(exist_ok=True)
 
     mcp_file = claude_dir / ".mcp.json"
