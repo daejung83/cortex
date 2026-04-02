@@ -1,6 +1,16 @@
 # Changelog
 
-## [0.1.0-beta] — 2026-04-01
+## [0.1.0b2] — 2026-04-02
+
+### Bug fixes
+- **WSL fix:** `cortex init-global` now correctly writes Claude Code config to the Windows user home (`C:\Users\<name>\.claude\`) when running from WSL, instead of the Linux home. Claude Code is a Windows app and was silently ignoring the config written to the wrong path.
+- **MCP transport:** Ensured `.mcp.json` always includes `"type": "streamable-http"` — without it Claude Code skips the server silently.
+- **searcher.py:** `read_text()` now uses `encoding="utf-8", errors="replace"` to prevent cp1252 crashes on Windows.
+- **manager.py:** `always-on.md` and `active-context.md` seed files now write with `encoding="utf-8"`.
+- **cli.py:** Fixed partial key match bug in `_write_secret()` — keys like `CORTEX_LLM_PROVIDER_EXTRA` no longer clobber `CORTEX_LLM_PROVIDER`.
+- **pyproject.toml:** License changed to SPDX string format (`"MIT"`) — removes deprecation warnings during build.
+
+## [0.1.0b1] — 2026-04-01
 
 ### First public release
 
