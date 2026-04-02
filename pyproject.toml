@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cortex-brain"
-version = "0.1.0b2"
+version = "0.1.0b3"
 description = "Persistent memory for AI — across every tool, every session"
 readme = "README.md"
 requires-python = ">=3.11"

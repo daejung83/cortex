@@ -631,28 +631,37 @@ def cmd_init_global(args):
     port = args.port
     created = []
 
-    # Claude Code global: ~/.claude/.mcp.json
-    # On Windows, Claude Code reads from %APPDATA%\.. but actually uses the Windows user home.
-    # On WSL, Path.home() gives the Linux home — we need the Windows user home instead.
-    import os, platform
+    # Claude Code global MCP — use `claude mcp add -s user` (user-scoped, works everywhere)
+    # This writes to ~/.claude/settings.json which Claude Code reads for user-level MCP servers.
+    # Writing .mcp.json directly is unreliable across platforms (scope is project-local).
+    import os, platform, subprocess as sp
+    claude_cli = "claude"
+    mcp_url = f"http://127.0.0.1:{port}/mcp"
+    claude_result = sp.run(
+        [claude_cli, "mcp", "add", "-s", "user", "--transport", "http", "cortex", mcp_url],
+        capture_output=True, text=True
+    )
+    if claude_result.returncode == 0:
+        created.append("Claude Code user-scoped MCP server (via claude mcp add -s user)")
+    else:
+        # claude CLI not found or failed — fall back to manual instructions
+        print(f"\n  ⚠️  Could not run 'claude mcp add' automatically.")
+        print(f"  Run this manually to register Cortex with Claude Code:")
+        print(f"    claude mcp add -s user --transport http cortex {mcp_url}\n")
+
+    # Claude Code global instructions: ~/.claude/CLAUDE.md
+    # Resolve to Windows home if running in WSL
     if platform.system() == "Linux" and "microsoft" in platform.uname().release.lower():
-        # Running in WSL — write to Windows user home so Claude Code (Windows app) picks it up
         win_home = os.environ.get("USERPROFILE") or os.environ.get("HOMEDRIVE", "C:") + os.environ.get("HOMEPATH", "\\Users\\User")
         claude_dir = Path(win_home) / ".claude"
     else:
         claude_dir = Path.home() / ".claude"
     claude_dir.mkdir(exist_ok=True)
 
-    mcp_file = claude_dir / ".mcp.json"
-    if not mcp_file.exists() or args.force:
-        mcp_file.write_text(MCP_JSON(port), encoding="utf-8")
-        created.append(f"{mcp_file} (Claude Code — global MCP)")
-
-    # Claude Code global instructions: ~/.claude/CLAUDE.md
     claude_md = claude_dir / "CLAUDE.md"
     if not claude_md.exists() or args.force:
         claude_md.write_text(MEMORY_INSTRUCTIONS, encoding="utf-8")
-        created.append(f"{claude_md} (Claude Code — global instructions)")
+        created.append(f"{claude_md} (Claude Code — global memory instructions)")
 
     # Cursor global rules: ~/.cursor/rules/cortex.md
     cursor_rules_dir = Path.home() / ".cursor" / "rules"

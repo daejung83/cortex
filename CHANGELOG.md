@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0b3] — 2026-04-02
+
+### Bug fixes
+- **Claude Code MCP scope:** `cortex init-global` now uses `claude mcp add -s user --transport http` instead of writing `.mcp.json` directly. User-scoped MCP is the correct global registration method — `.mcp.json` is project-local only.
+- Falls back to manual instructions if `claude` CLI isn't in PATH.
+
 ## [0.1.0b2] — 2026-04-02
 
 ### Bug fixes

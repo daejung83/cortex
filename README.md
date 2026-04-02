@@ -107,32 +107,21 @@ Then restart your AI tool and you're done.
 
 ### Claude Code (CLI)
 
-Claude Code reads MCP config from `~/.claude/.mcp.json` (global) or `.mcp.json` in your project root.
-
 **Recommended: Use the command**
 ```bash
 cortex init-global
 ```
 
-This creates:
-- `~/.claude/.mcp.json` — registers Cortex as an MCP server
-- `~/.claude/CLAUDE.md` — instructs Claude to load your memory every session
+This runs `claude mcp add -s user` to register Cortex at user scope (works in every project), and creates `~/.claude/CLAUDE.md` with memory instructions.
 
-> ⚠️ **Common mistake:** Do NOT add `mcpServers` to `settings.json` — Claude Code silently ignores it there. Always use `.mcp.json`.
-
-**Manual setup** — create `~/.claude/.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "cortex": {
-      "type": "streamable-http",
-      "url": "http://127.0.0.1:7700/mcp"
-    }
-  }
-}
+**Manual setup** — run this once in your terminal:
+```bash
+claude mcp add -s user --transport http cortex http://127.0.0.1:7700/mcp
 ```
 
-And create `~/.claude/CLAUDE.md`:
+The `-s user` flag makes it global — no per-project config needed.
+
+Then create `~/.claude/CLAUDE.md`:
 ```markdown
 # Memory Instructions (Cortex)
 At the start of every session, call cortex:get_context() and cortex:get_learnings()
