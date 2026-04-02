@@ -259,16 +259,27 @@ def cmd_update(args):
         do_update = input(f"  Upgrade from {current} to {latest}? [Y/n]: ").strip().lower() != "n"
 
     if do_update:
+        import platform
+        if platform.system() == "Windows":
+            # Windows locks cortex.exe while running — pip can't overwrite it
+            print(f"\n  ⚠️  Windows: stop Cortex first, then run:")
+            print(f"       pip install --upgrade cortex-brain")
+            print(f"  Then restart with: cortex start\n")
+            return
         print(f"  Upgrading...")
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", "--upgrade", "cortex-brain", "-q"],
             capture_output=True, text=True
         )
         if result.returncode == 0:
-            print(f"  Upgraded to {latest}")
+            print(f"  ✅ Upgraded to {latest}")
             print(f"  Restart Cortex to apply: stop (Ctrl+C) then cortex start\n")
         else:
-            print(f"  Upgrade failed: {result.stderr.strip()}")
+            if "WinError 32" in result.stderr or "being used by another process" in result.stderr:
+                print(f"\n  ⚠️  cortex.exe is locked. Stop Cortex first, then run:")
+                print(f"       pip install --upgrade cortex-brain\n")
+            else:
+                print(f"  Upgrade failed: {result.stderr.strip()}")
     else:
         print("  Skipped.\n")
 
